@@ -2,7 +2,9 @@ package crawler
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/types"
 	"github.com/antchfx/htmlquery"
@@ -106,4 +108,66 @@ func ExtractAddressFromCardPage(doc *html.Node) string {
 	textJoined := strings.Join(text, ", ")
 
 	return textJoined
+}
+
+// / Parses time in HH:mm format as Duration since midnight
+func parseTime(timeStr string) time.Duration {
+	if timeStr[2] != ':' && len(timeStr) != 5 {
+		panic(fmt.Sprintf("Time is supposed to be in HH:MM format, but instead got %s", timeStr))
+	}
+	hours, err := strconv.ParseInt(timeStr[0:2], 10, 0)
+	if err != nil {
+		panic(fmt.Sprintf("Can't parse hours in time string %s", timeStr))
+	}
+	minutes, err := strconv.ParseInt(timeStr[3:5], 10, 0)
+	if err != nil {
+		panic(fmt.Sprintf("Can't parse minutes in time string %s", timeStr))
+	}
+	return time.Duration((hours*60 + minutes) * 60 * 1e9)
+}
+
+// / today - is midnight of some date (UTC)
+func ExtractEventDate(doc *html.Node, today time.Time) time.Time {
+	node := htmlquery.FindOne(doc, "//span[contains(@class, 'bd_item_date')]")
+	text := strings.TrimSpace(node.FirstChild.Data)
+	lowerText := strings.ToLower(text)
+	switch {
+	case strings.HasPrefix(lowerText, "вчера в"):
+		timeStr := strings.TrimSpace(strings.TrimPrefix(lowerText, "вчера в"))
+		timeDur := parseTime(timeStr) - time.Duration(24*60*60*1e9)
+		return today.Add(timeDur)
+	case strings.HasPrefix(lowerText, "сегодня в"):
+		timeStr := strings.TrimSpace(strings.TrimPrefix(lowerText, "сегодня в"))
+		timeDur := parseTime(timeStr)
+		return today.Add(timeDur)
+	default:
+		parts := strings.Split(lowerText, " ")
+		if len(parts) != 3 {
+			panic(fmt.Sprintf("Exected date to be in format \"DD MMM YYYY\" but got \"%s\"", lowerText))
+		}
+		day, err := strconv.ParseInt(parts[0], 10, 8)
+		if err != nil {
+			panic(fmt.Sprintf("Expected day to be integer, but got \"%s\"", parts[0]))
+		}
+		year, err := strconv.ParseInt(parts[2], 10, 16)
+		if err != nil {
+			panic(fmt.Sprintf("Expected year to be integer, but got \"%s\"", parts[2]))
+		}
+		var month time.Month = -1
+		months := []string{"января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"}
+		for i, m := range months {
+			if parts[1] == m {
+				month = time.Month(i + 1)
+				break
+			}
+		}
+		if month == -1 {
+			panic(fmt.Sprintf("Expected month to be one of %v, but got \"%s\"", months, parts[1]))
+		}
+		utcLoc, err := time.LoadLocation("UTC")
+		if err != nil {
+			panic("Can't load UTC location")
+		}
+		return time.Date(int(year), month, int(day), 0, 0, 0, 0, utcLoc)
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/types"
 )
@@ -106,6 +107,39 @@ func TestExtractAddressFromPetCardPage(t *testing.T) {
 		var extractedAddress string = ExtractAddressFromCardPage(ParseHtmlContent(catalogHtml))
 		if extractedAddress != testCase.address {
 			t.Logf("Wrong card type extracted for %s. Expected \"%v\", but got \"%v\"", testCase.path, testCase.address, extractedAddress)
+			t.Fail()
+		}
+	}
+}
+
+func TestExtractEventTimeFromPetCardPage(t *testing.T) {
+	utcLoc, err := time.LoadLocation("UTC")
+	if err != nil {
+		panic("Can't load UTC location")
+	}
+	today := time.Date(2022, 10, 17, 0, 0, 0, 0, utcLoc)
+
+	testCases := []struct {
+		path string
+		time time.Time
+	}{
+		{"./testdata/164793.html.dump", time.Date(2022, 10, 13, 0, 0, 0, 0, utcLoc)},
+		{"./testdata/164921.html.dump", time.Date(2022, 10, 16, 22, 27, 0, 0, utcLoc)},
+		{"./testdata/164923.html.dump", time.Date(2022, 10, 17, 0, 10, 0, 0, utcLoc)},
+		{"./testdata/164929.html.dump", time.Date(2022, 10, 17, 6, 52, 0, 0, utcLoc)},
+		{"./testdata/164931.html.dump", time.Date(2022, 10, 17, 7, 45, 0, 0, utcLoc)},
+	}
+
+	for _, testCase := range testCases {
+		fileContent, err := os.ReadFile(testCase.path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		catalogHtml := string(fileContent)
+
+		var extractedEventTime time.Time = ExtractEventDate(ParseHtmlContent(catalogHtml), today)
+		if extractedEventTime != testCase.time {
+			t.Logf("Wrong event time extracted for %s. Expected \"%v\", but got \"%v\"", testCase.path, testCase.time, extractedEventTime)
 			t.Fail()
 		}
 	}

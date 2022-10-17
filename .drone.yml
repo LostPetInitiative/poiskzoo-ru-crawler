@@ -9,7 +9,7 @@ steps:
   commands:
   - go mod download && go mod verify
   - go build -v
-  - go test -v ./...
+  - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 # - name: build & push docker image (main branch)
 #   image: plugins/docker
 #   when:

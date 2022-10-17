@@ -113,21 +113,17 @@ func TestExtractAddressFromPetCardPage(t *testing.T) {
 }
 
 func TestExtractEventTimeFromPetCardPage(t *testing.T) {
-	utcLoc, err := time.LoadLocation("UTC")
-	if err != nil {
-		panic("Can't load UTC location")
-	}
-	today := time.Date(2022, 10, 17, 0, 0, 0, 0, utcLoc)
+	today := time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC)
 
 	testCases := []struct {
 		path string
 		time time.Time
 	}{
-		{"./testdata/164793.html.dump", time.Date(2022, 10, 13, 0, 0, 0, 0, utcLoc)},
-		{"./testdata/164921.html.dump", time.Date(2022, 10, 16, 22, 27, 0, 0, utcLoc)},
-		{"./testdata/164923.html.dump", time.Date(2022, 10, 17, 0, 10, 0, 0, utcLoc)},
-		{"./testdata/164929.html.dump", time.Date(2022, 10, 17, 6, 52, 0, 0, utcLoc)},
-		{"./testdata/164931.html.dump", time.Date(2022, 10, 17, 7, 45, 0, 0, utcLoc)},
+		{"./testdata/164793.html.dump", time.Date(2022, 10, 13, 0, 0, 0, 0, time.UTC)},
+		{"./testdata/164921.html.dump", time.Date(2022, 10, 16, 22, 27, 0, 0, time.UTC)},
+		{"./testdata/164923.html.dump", time.Date(2022, 10, 17, 0, 10, 0, 0, time.UTC)},
+		{"./testdata/164929.html.dump", time.Date(2022, 10, 17, 6, 52, 0, 0, time.UTC)},
+		{"./testdata/164931.html.dump", time.Date(2022, 10, 17, 7, 45, 0, 0, time.UTC)},
 	}
 
 	for _, testCase := range testCases {
@@ -137,9 +133,34 @@ func TestExtractEventTimeFromPetCardPage(t *testing.T) {
 		}
 		catalogHtml := string(fileContent)
 
-		var extractedEventTime time.Time = ExtractEventDate(ParseHtmlContent(catalogHtml), today)
+		var extractedEventTime time.Time = ExtractEventDateFromCardPage(ParseHtmlContent(catalogHtml), today)
 		if extractedEventTime != testCase.time {
 			t.Logf("Wrong event time extracted for %s. Expected \"%v\", but got \"%v\"", testCase.path, testCase.time, extractedEventTime)
+			t.Fail()
+		}
+	}
+}
+
+func TestExtractCommentFromPetCardPage(t *testing.T) {
+	testCases := []struct {
+		path, comment string
+	}{
+		{"./testdata/164921.html.dump", "Бенгальский кот пропал в приделах улиц советская цвиллинга рыбаковская, кот длинный, окрас леопардовый"},
+		{"./testdata/164923.html.dump", "Найдена британская Кошечка. Кто потерял?"},
+		{"./testdata/164929.html.dump", "15 октября прибилась поздно вечером эта девочка. Воспитанная, умная, видно что домашняя, не боится детей и машин. Хозяева, отзовитесь"},
+		{"./testdata/164931.html.dump", "Очень срочно  Сегодня утром, 17. 10. 22 г. в 6. 10-6. 20, в р-не пр. Пролетарского 8/1-8/2 потерялась маленькая собачка - той-пудель рыжего окраса. В холке очень маленькая - 22 см. Собака взрослая, хоть и выглядит, как щенок. Напугал волкодав, погнался за моей собакой. Возможно, укусил, так как моя собака заскулила очень сильно. Возможно, просто испугалась - я не увидела. У нее уже был сердечный приступ, может от перенесенного страха нуждаться в помощи ветеринара. Прошу оказать помощь в поиске. Собачка контактная, может пойти на зов. Зовут Нэсси. На заднем бедре есть клеймо - SLN 853. Если даже просто увидите - дайте знать.. Людмила"},
+	}
+
+	for _, testCase := range testCases {
+		fileContent, err := os.ReadFile(testCase.path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		catalogHtml := string(fileContent)
+
+		var extractedAddress string = ExtractCommentFromCardPage(ParseHtmlContent(catalogHtml))
+		if extractedAddress != testCase.comment {
+			t.Logf("Wrong comment extracted for %s. Expected \"%v\", but got \"%v\"", testCase.path, testCase.comment, extractedAddress)
 			t.Fail()
 		}
 	}

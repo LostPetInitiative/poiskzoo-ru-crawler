@@ -127,7 +127,7 @@ func parseTime(timeStr string) time.Duration {
 }
 
 // / today - is midnight of some date (UTC)
-func ExtractEventDate(doc *html.Node, today time.Time) time.Time {
+func ExtractEventDateFromCardPage(doc *html.Node, today time.Time) time.Time {
 	node := htmlquery.FindOne(doc, "//span[contains(@class, 'bd_item_date')]")
 	text := strings.TrimSpace(node.FirstChild.Data)
 	lowerText := strings.ToLower(text)
@@ -164,10 +164,12 @@ func ExtractEventDate(doc *html.Node, today time.Time) time.Time {
 		if month == -1 {
 			panic(fmt.Sprintf("Expected month to be one of %v, but got \"%s\"", months, parts[1]))
 		}
-		utcLoc, err := time.LoadLocation("UTC")
-		if err != nil {
-			panic("Can't load UTC location")
-		}
-		return time.Date(int(year), month, int(day), 0, 0, 0, 0, utcLoc)
+		return time.Date(int(year), month, int(day), 0, 0, 0, 0, time.UTC)
 	}
+}
+
+func ExtractCommentFromCardPage(doc *html.Node) string {
+	node := htmlquery.FindOne(doc, "//div[@itemprop='description']/br")
+	textNode := node.NextSibling
+	return strings.TrimSpace(textNode.Data)
 }

@@ -47,7 +47,19 @@ func ExtractSpeciesFromCardPage(doc *html.Node) types.Species {
 	case strings.Contains(dataText, "кот"), strings.Contains(dataText, "кошка"):
 		return types.Cat
 	default:
-		panic(fmt.Sprintf("Can't extract species type"))
+		panic("Can't extract species type")
 	}
+}
 
+func ExtractCardTypeFromCardPage(doc *html.Node) types.CardType {
+	node := htmlquery.FindOne(doc, "//h1[contains(@class, 'con_heading')]")
+	dataText := strings.ToLower(node.FirstChild.Data)
+	switch {
+	case strings.Contains(dataText, "найден"):
+		return types.Found
+	case strings.Contains(dataText, "пропал"):
+		return types.Lost
+	default:
+		panic("Can't extract card type")
+	}
 }

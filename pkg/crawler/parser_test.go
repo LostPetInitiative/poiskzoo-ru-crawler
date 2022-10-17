@@ -34,15 +34,15 @@ func TestExtractCardUrlsFromCatalogPage(t *testing.T) {
 	}
 }
 
-func TestExtractSpeciesFromPetCard(t *testing.T) {
+func TestExtractSpeciesFromPetCardPage(t *testing.T) {
 	testCases := []struct {
 		path     string
 		expected types.Species
 	}{
-		{"./testdata/164931.html.dump", types.Dog},
 		{"./testdata/164921.html.dump", types.Cat},
 		{"./testdata/164923.html.dump", types.Cat},
 		{"./testdata/164929.html.dump", types.Dog},
+		{"./testdata/164931.html.dump", types.Dog},
 	}
 
 	for _, testCase := range testCases {
@@ -55,6 +55,32 @@ func TestExtractSpeciesFromPetCard(t *testing.T) {
 		var extractedSpecies types.Species = ExtractSpeciesFromCardPage(ParseHtmlContent(catalogHtml))
 		if extractedSpecies != testCase.expected {
 			t.Logf("Wrong species extracted for %s. Expected %v, but got %v", testCase.path, testCase.expected, extractedSpecies)
+			t.Fail()
+		}
+	}
+}
+
+func TestExtractCardTypeFromPetCardPage(t *testing.T) {
+	testCases := []struct {
+		path     string
+		expected types.CardType
+	}{
+		{"./testdata/164921.html.dump", types.Lost},
+		{"./testdata/164923.html.dump", types.Found},
+		{"./testdata/164929.html.dump", types.Found},
+		{"./testdata/164931.html.dump", types.Lost},
+	}
+
+	for _, testCase := range testCases {
+		fileContent, err := os.ReadFile(testCase.path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		catalogHtml := string(fileContent)
+
+		var extractedType types.CardType = ExtractCardTypeFromCardPage(ParseHtmlContent(catalogHtml))
+		if extractedType != testCase.expected {
+			t.Logf("Wrong card type extracted for %s. Expected %v, but got %v", testCase.path, testCase.expected, extractedType)
 			t.Fail()
 		}
 	}

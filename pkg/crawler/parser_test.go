@@ -85,3 +85,28 @@ func TestExtractCardTypeFromPetCardPage(t *testing.T) {
 		}
 	}
 }
+
+func TestExtractAddressFromPetCardPage(t *testing.T) {
+	testCases := []struct {
+		path, address string
+	}{
+		{"./testdata/164921.html.dump", "Оренбург, Центральный"},
+		{"./testdata/164923.html.dump", "Орехово-Зуево, Демихово"},
+		{"./testdata/164929.html.dump", "Владивосток, Владивосток, район Арт-пляжа."},
+		{"./testdata/164931.html.dump", "Сургут, г. Сургут, пр. Пролетарский 8/1-8/2"},
+	}
+
+	for _, testCase := range testCases {
+		fileContent, err := os.ReadFile(testCase.path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		catalogHtml := string(fileContent)
+
+		var extractedAddress string = ExtractAddressFromCardPage(ParseHtmlContent(catalogHtml))
+		if extractedAddress != testCase.address {
+			t.Logf("Wrong card type extracted for %s. Expected \"%v\", but got \"%v\"", testCase.path, testCase.address, extractedAddress)
+			t.Fail()
+		}
+	}
+}

@@ -63,3 +63,47 @@ func ExtractCardTypeFromCardPage(doc *html.Node) types.CardType {
 		panic("Can't extract card type")
 	}
 }
+
+func ExtractAddressFromCardPage(doc *html.Node) string {
+	node := htmlquery.FindOne(doc, "//h1[contains(@class, 'con_heading')]")
+	dataText := node.FirstChild.Data
+	words := strings.Split(dataText, " ")
+	if len(words) < 1 {
+		panic("Heading does not contain enough data (city name at the end?)")
+	}
+	lastWord := words[len(words)-1]
+
+	regionNode := htmlquery.FindOne(doc, "//strong[contains(text(), 'Район где')]")
+	if regionNode == nil {
+		regionNode = htmlquery.FindOne(doc, "//strong[contains(text(), 'Адрес где')]")
+	}
+
+	if regionNode == nil {
+		panic("Can't find address/region element on the page")
+	}
+
+	text := make([]string, 1)
+	text[0] = lastWord // this usually contains the City
+
+	var curNode *html.Node = regionNode
+
+	for {
+		sib := curNode.NextSibling
+		if sib.Type == html.ElementNode && sib.Data == "strong" {
+			break
+		}
+		if sib == nil {
+			break
+		}
+		if sib.Type == html.TextNode {
+			trimmed := strings.TrimSpace(sib.Data)
+			if len(trimmed) > 0 {
+				text = append(text, trimmed)
+			}
+		}
+		curNode = sib
+	}
+	textJoined := strings.Join(text, ", ")
+
+	return textJoined
+}

@@ -5,10 +5,10 @@ name: default
 
 steps:
 - name: build & test
-  image: golang:1.19-alpine
+  image: golang:1.19
   commands:
-  - go mod download
-  - go build
+  - go mod download && go mod verify
+  - go build -v
   - go test -v ./...
 # - name: build & push docker image (main branch)
 #   image: plugins/docker

@@ -33,3 +33,18 @@ func (c CardType) String() string {
 	}
 	return cardTypes[c-1]
 }
+
+type Sex int
+
+const (
+	Male Sex = iota + 1
+	Female
+)
+
+func (s Sex) String() string {
+	sexes := []string{"unknown", "male", "female"}
+	if s < Male || s > Female {
+		panic(fmt.Sprintf("Unexpected animal sex: %d", s))
+	}
+	return sexes[s-1]
+}

@@ -87,6 +87,32 @@ func TestExtractCardTypeFromPetCardPage(t *testing.T) {
 	}
 }
 
+func TestExtractAnimalSexSpecFromPetCardPage(t *testing.T) {
+	testCases := []struct {
+		path     string
+		expected types.Sex
+	}{
+		{"./testdata/164921.html.dump", types.Male},
+		{"./testdata/164923.html.dump", types.Female},
+		{"./testdata/164929.html.dump", types.Female},
+		{"./testdata/164931.html.dump", types.Female},
+	}
+
+	for _, testCase := range testCases {
+		fileContent, err := os.ReadFile(testCase.path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		catalogHtml := string(fileContent)
+
+		var extractedSexSpec types.Sex = ExtractAnimalSexSpecFromCardPage(ParseHtmlContent(catalogHtml))
+		if extractedSexSpec != testCase.expected {
+			t.Logf("Wrong card type extracted for %s. Expected %v, but got %v", testCase.path, testCase.expected, extractedSexSpec)
+			t.Fail()
+		}
+	}
+}
+
 func TestExtractAddressFromPetCardPage(t *testing.T) {
 	testCases := []struct {
 		path, address string

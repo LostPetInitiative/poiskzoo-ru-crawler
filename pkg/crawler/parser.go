@@ -110,7 +110,7 @@ func ExtractAddressFromCardPage(doc *html.Node) string {
 	return textJoined
 }
 
-// / Parses time in HH:mm format as Duration since midnight
+// Parses time in HH:mm format as Duration since midnight
 func parseTime(timeStr string) time.Duration {
 	if timeStr[2] != ':' && len(timeStr) != 5 {
 		panic(fmt.Sprintf("Time is supposed to be in HH:MM format, but instead got %s", timeStr))
@@ -126,7 +126,7 @@ func parseTime(timeStr string) time.Duration {
 	return time.Duration((hours*60 + minutes) * 60 * 1e9)
 }
 
-// / today - is midnight of some date (UTC)
+// today - is midnight of some date (UTC)
 func ExtractEventDateFromCardPage(doc *html.Node, today time.Time) time.Time {
 	node := htmlquery.FindOne(doc, "//span[contains(@class, 'bd_item_date')]")
 	text := strings.TrimSpace(node.FirstChild.Data)
@@ -172,4 +172,35 @@ func ExtractCommentFromCardPage(doc *html.Node) string {
 	node := htmlquery.FindOne(doc, "//div[@itemprop='description']/br")
 	textNode := node.NextSibling
 	return strings.TrimSpace(textNode.Data)
+}
+
+func ExtractAnimalSexSpecFromCardPage(doc *html.Node) types.Sex {
+	sexNode := htmlquery.FindOne(doc, "//strong[contains(text(), 'Пол животного')]")
+
+	if sexNode == nil {
+		panic("Can't find pet sex specification element on the page")
+	}
+
+	var curNode *html.Node = sexNode
+
+	for {
+		sib := curNode.NextSibling
+		if sib.Type == html.ElementNode && sib.Data == "strong" {
+			break
+		}
+		if sib == nil {
+			break
+		}
+		if sib.Type == html.TextNode {
+			trimmed := strings.ToLower(strings.TrimSpace(sib.Data))
+			switch trimmed {
+			case "самка":
+				return types.Female
+			case "самец":
+				return types.Male
+			}
+		}
+		curNode = sib
+	}
+	panic("Can't find animal sex specification on pet card page")
 }

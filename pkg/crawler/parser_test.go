@@ -96,6 +96,7 @@ func TestExtractAnimalSexSpecFromPetCardPage(t *testing.T) {
 		{"./testdata/164923.html.dump", types.Female},
 		{"./testdata/164929.html.dump", types.Female},
 		{"./testdata/164931.html.dump", types.Female},
+		{"./testdata/164978.html.dump", types.UndefinedSex},
 	}
 
 	for _, testCase := range testCases {

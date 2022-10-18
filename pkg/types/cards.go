@@ -37,7 +37,8 @@ func (c CardType) String() string {
 type Sex int
 
 const (
-	Male Sex = iota + 1
+	UndefinedSex Sex = iota
+	Male
 	Female
 )
 
@@ -46,5 +47,5 @@ func (s Sex) String() string {
 	if s < Male || s > Female {
 		panic(fmt.Sprintf("Unexpected animal sex: %d", s))
 	}
-	return sexes[s-1]
+	return sexes[s]
 }

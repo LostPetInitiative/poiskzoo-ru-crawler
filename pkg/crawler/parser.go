@@ -194,6 +194,8 @@ func ExtractAnimalSexSpecFromCardPage(doc *html.Node) types.Sex {
 		if sib.Type == html.TextNode {
 			trimmed := strings.ToLower(strings.TrimSpace(sib.Data))
 			switch trimmed {
+			case "---":
+				return types.UndefinedSex
 			case "самка":
 				return types.Female
 			case "самец":

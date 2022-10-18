@@ -6,10 +6,14 @@ name: default
 steps:
 - name: build & test
   image: golang:1.19
+  environment:
+    CODECOV_TOKEN:
+      from_secret: CODECOV_TOKEN
   commands:
   - go mod download && go mod verify
   - go build -v
   - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+  - curl -Os https://uploader.codecov.io/latest/linux/codecov && chmod +x codecov && ./codecov
 # - name: build & push docker image (main branch)
 #   image: plugins/docker
 #   when:

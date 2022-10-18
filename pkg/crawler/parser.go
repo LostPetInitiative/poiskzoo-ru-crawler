@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -205,4 +206,31 @@ func ExtractAnimalSexSpecFromCardPage(doc *html.Node) types.Sex {
 		curNode = sib
 	}
 	panic("Can't find animal sex specification on pet card page")
+}
+
+func ExtractSmallPhotoUrlFromCardPage(doc *html.Node) *url.URL {
+	photoNode := htmlquery.FindOne(doc, "//img[contains(@class, 'bd_image_small2')]")
+	if photoNode == nil {
+		panic("Could not find photo node")
+	}
+
+	for _, attr := range photoNode.Attr {
+		if attr.Key == "src" {
+			urlText := attr.Val
+			const mediumPrefix string = "https://poiskzoo.ru/images/board/medium"
+			const smallPrefix string = "https://poiskzoo.ru/images/board/small"
+			if strings.HasPrefix(urlText, mediumPrefix) {
+				suffix := strings.TrimPrefix(urlText, mediumPrefix)
+				smallUrlText := fmt.Sprintf("%s%s?v=0053", smallPrefix, suffix)
+				result, err := url.Parse(smallUrlText)
+				if err != nil {
+					panic(fmt.Sprintf("Failed to parse url %s", smallUrlText))
+				}
+				return result
+			} else {
+				panic(fmt.Sprintf("Unsupported image prefix in image url: %s", urlText))
+			}
+		}
+	}
+	panic("Image node does not contain src attribute")
 }

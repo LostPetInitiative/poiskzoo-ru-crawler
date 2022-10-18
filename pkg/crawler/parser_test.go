@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"log"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -109,6 +110,32 @@ func TestExtractAnimalSexSpecFromPetCardPage(t *testing.T) {
 		var extractedSexSpec types.Sex = ExtractAnimalSexSpecFromCardPage(ParseHtmlContent(catalogHtml))
 		if extractedSexSpec != testCase.expected {
 			t.Logf("Wrong card type extracted for %s. Expected %v, but got %v", testCase.path, testCase.expected, extractedSexSpec)
+			t.Fail()
+		}
+	}
+}
+
+func TestSmallPhotoUrlFromCardPage(t *testing.T) {
+	testCases := []struct {
+		path, expected string
+	}{
+		{"./testdata/164921.html.dump", "https://poiskzoo.ru/images/board/small/propala-koshka-164921-propala-koshka-kot-g-orenburg.jpg?v=0053"},
+		{"./testdata/164923.html.dump", "https://poiskzoo.ru/images/board/small/naydena-koshka-164923-naydena-koshka-britanka-g-orehovo-zuevo.jpg?v=0053"},
+		{"./testdata/164929.html.dump", "https://poiskzoo.ru/images/board/small/naydena-sobaka-169c9d1281e68d3ccdd52712bc493686-naydena-sobaka-umnaya-ryzhaya-vzroslaya-devochka-g-vladivostok.jpg?v=0053"},
+		{"./testdata/164931.html.dump", "https://poiskzoo.ru/images/board/small/propala-sobaka-164931-propala-sobaka-toy-pudel-g-surgut.jpg?v=0053"},
+		{"./testdata/164978.html.dump", "https://poiskzoo.ru/images/board/small/naydena-koshka-0076a8bb193a494482fd60268126d9ee-naydena-koshka-ili-kot-g-stavropol.jpg?v=0053"},
+	}
+
+	for _, testCase := range testCases {
+		fileContent, err := os.ReadFile(testCase.path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		catalogHtml := string(fileContent)
+
+		var extractedPhotoUrl *url.URL = ExtractSmallPhotoUrlFromCardPage(ParseHtmlContent(catalogHtml))
+		if extractedPhotoUrl.String() != testCase.expected {
+			t.Logf("Wrong card type extracted for %s. Expected %v, but got %v", testCase.path, testCase.expected, extractedPhotoUrl)
 			t.Fail()
 		}
 	}

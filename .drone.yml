@@ -1,0 +1,51 @@
+---
+kind: pipeline
+type: kubernetes
+name: default
+
+steps:
+- name: build & test
+  image: golang:1.19
+  environment:
+    CODECOV_TOKEN:
+      from_secret: CODECOV_TOKEN
+  commands:
+  - go mod download && go mod verify
+  - go build -v
+  - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+  - curl -Os https://uploader.codecov.io/latest/linux/codecov && chmod +x codecov && ./codecov
+# - name: build & push docker image (main branch)
+#   image: plugins/docker
+#   when:
+#     branch:
+#     - main
+#     event:
+#       exclude:
+#         - tag
+#   settings:
+#     username:
+#       from_secret: docker_username
+#     password:
+#       from_secret: docker_password
+#     repo: lostpetinitiative/trello-board-maintainer
+#     target: final
+#     auto_tag: true
+#     force_tag: true
+#     #build_args:
+#     # - VERSION=0.0.0.${DRONE_BUILD_NUMBER}
+# - name: build & push docker image (TAG)
+#   image: plugins/docker
+#   when:
+#     event:
+#     - tag
+#   settings:
+#     username:
+#       from_secret: docker_username
+#     password:
+#       from_secret: docker_password
+#     repo: lostpetinitiative/trello-board-maintainer
+#     target: final
+#     auto_tag: true
+#     force_tag: true
+#     #build_args:
+#     # - VERSION=${DRONE_TAG}.${DRONE_BUILD_NUMBER}

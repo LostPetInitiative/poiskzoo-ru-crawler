@@ -11,7 +11,7 @@ steps:
       from_secret: CODECOV_TOKEN
   commands:
   - go mod download && go mod verify
-  - go build -v
+  - go build -v -ldflags "-X 'github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/version.GitCommit=${DRONE_COMMIT}' -X 'github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/version.AppVersion=0.0.0.${DRONE_BUILD_NUMBER}'"
   - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
   - curl -Os https://uploader.codecov.io/latest/linux/codecov && chmod +x codecov && ./codecov
 # - name: build & push docker image (main branch)

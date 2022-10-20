@@ -4,43 +4,30 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"strconv"
 	"sync"
 
-	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/version"
+	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/utils"
 )
 
 type Nominatim struct {
-	baseUrl    *url.URL
-	mutex      *sync.Mutex
-	httpClient *http.Client
+	baseUrl *url.URL
+	mutex   *sync.Mutex
 }
 
 func (n *Nominatim) Geocode(toponym string) (*GeoCoords, error) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 
-	requestFullURL := fmt.Sprintf("%s?q=%s&format=jsonv2", n.baseUrl, url.QueryEscape(toponym))
-
-	req, err := http.NewRequest("GET", requestFullURL, nil)
+	requestFullURLstr := fmt.Sprintf("%s?q=%s&format=jsonv2", n.baseUrl, url.QueryEscape(toponym))
+	requestFullURL, err := url.Parse(requestFullURLstr)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Add("Accept", `application/json`)
-	req.Header.Set("User-Agent", fmt.Sprintf("LostPetInitiative:poiskzoo-crawler / %s:%.6s (https://kashtanka.pet/)", version.AppVersion, version.GitCommit))
-	resp, err := n.httpClient.Do(req)
+	body, err := utils.HttpGet(requestFullURL, "application/json")
 
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +57,7 @@ func (n *Nominatim) Geocode(toponym string) (*GeoCoords, error) {
 }
 
 func NewNominatim(serviceUrl *url.URL) *Nominatim {
-	return &Nominatim{serviceUrl, &sync.Mutex{}, &http.Client{}}
+	return &Nominatim{serviceUrl, &sync.Mutex{}}
 }
 
 const openStreetMapsNominatimURL string = "https://nominatim.openstreetmap.org/search.php"
@@ -81,7 +68,7 @@ func NewOpenStreetMapsNominatim() *Nominatim {
 	if err != nil {
 		panic("Failed to parse openStreetMapsNominatimURL")
 	}
-	return &Nominatim{url, &sync.Mutex{}, &http.Client{}}
+	return &Nominatim{url, &sync.Mutex{}}
 }
 
 type FoundToponymJSON struct {

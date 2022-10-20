@@ -21,6 +21,7 @@ func ParseHtmlContent(htmlContent string) *html.Node {
 	return doc
 }
 
+// Returns relative URL from cards found on the catalog page
 func ExtractCardUrlsFromDocument(doc *html.Node) []string {
 	nodes, err := htmlquery.QueryAll(doc, "//div[contains(@class, 'pzplitkadiv')]//div[contains(@class, 'pzplitkalink')]/a")
 	if err != nil {

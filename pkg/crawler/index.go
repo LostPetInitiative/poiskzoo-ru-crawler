@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/types"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/utils"
@@ -20,10 +21,11 @@ func GetCardCatalogPage(pageNum int) ([]types.CardID, error) {
 		log.Fatalf("Unable to parse URL: %s (%v)", effectiveUrlStr, effectiveUrl)
 	}
 
-	body, err := utils.HttpGet(effectiveUrl, "text/html")
+	resp, err := utils.HttpGetHtml(effectiveUrl)
 	if err != nil {
 		return nil, err
 	}
+	body := resp.Body
 
 	parsedNode := ParseHtmlContent(string(body))
 	var urls []string = ExtractCardUrlsFromDocument(parsedNode)
@@ -43,5 +45,48 @@ func GetCardCatalogPage(pageNum int) ([]types.CardID, error) {
 		result[i] = types.CardID(cardID)
 	}
 	return result, nil
+
+}
+
+type PetCard struct {
+	ID        types.CardID
+	Species   types.Species
+	City      string
+	Address   string
+	EventTime time.Time
+	EventType types.EventType
+	Comment   string
+	ImagesURL *url.URL
+}
+
+func GetPetCard(card types.CardID) (*PetCard, error) {
+	cardUrl, err := url.Parse(fmt.Sprintf("%s/%d", poiskZooBaseURL, card))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := utils.HttpGetHtml(cardUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: account for content-type header? seams that this header is misleading for poiskzoo.ru. The true encoding is utf-8, while content encoding headers says "windows-1251"
+	// TODO: parse encoding
+	parsed := ParseHtmlContent(string(resp.Body))
+
+	cityWithAddress := ExtractAddressFromCardPage(parsed)
+
+	nowUtc := time.Now().UTC()
+	today := time.Date(nowUtc.Year(), nowUtc.Month(), nowUtc.Day(), 0, 0, 0, 0, time.UTC)
+
+	return &PetCard{
+		ID:        card,
+		Species:   ExtractSpeciesFromCardPage(parsed),
+		City:      cityWithAddress.City,
+		Address:   cityWithAddress.Address,
+		EventTime: ExtractEventDateFromCardPage(parsed, today),
+		EventType: ExtractCardTypeFromCardPage(parsed),
+		Comment:   ExtractCommentFromCardPage(parsed),
+		ImagesURL: ExtractSmallPhotoUrlFromCardPage(parsed),
+	}, nil
 
 }

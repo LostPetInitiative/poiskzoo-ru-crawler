@@ -55,7 +55,7 @@ func ExtractSpeciesFromCardPage(doc *html.Node) types.Species {
 	}
 }
 
-func ExtractCardTypeFromCardPage(doc *html.Node) types.CardType {
+func ExtractCardTypeFromCardPage(doc *html.Node) types.EventType {
 	node := htmlquery.FindOne(doc, "//h1[contains(@class, 'con_heading')]")
 	dataText := strings.ToLower(node.FirstChild.Data)
 	switch {
@@ -68,14 +68,20 @@ func ExtractCardTypeFromCardPage(doc *html.Node) types.CardType {
 	}
 }
 
-func ExtractAddressFromCardPage(doc *html.Node) string {
+type CityAndAddress struct {
+	City    string
+	Address string
+}
+
+func ExtractAddressFromCardPage(doc *html.Node) *CityAndAddress {
 	node := htmlquery.FindOne(doc, "//h1[contains(@class, 'con_heading')]")
 	dataText := node.FirstChild.Data
 	words := strings.Split(dataText, " ")
 	if len(words) < 1 {
 		panic("Heading does not contain enough data (city name at the end?)")
 	}
-	lastWord := words[len(words)-1]
+	city := words[len(words)-1]
+	//log.Printf("City is %s (%q)", city, city)
 
 	regionNode := htmlquery.FindOne(doc, "//strong[contains(text(), 'Район где')]")
 	if regionNode == nil {
@@ -86,8 +92,7 @@ func ExtractAddressFromCardPage(doc *html.Node) string {
 		panic("Can't find address/region element on the page")
 	}
 
-	text := make([]string, 1)
-	text[0] = lastWord // this usually contains the City
+	text := make([]string, 0)
 
 	var curNode *html.Node = regionNode
 
@@ -109,7 +114,10 @@ func ExtractAddressFromCardPage(doc *html.Node) string {
 	}
 	textJoined := strings.Join(text, ", ")
 
-	return textJoined
+	return &CityAndAddress{
+		City:    city,
+		Address: textJoined,
+	}
 }
 
 // Parses time in HH:mm format as Duration since midnight

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/types"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/utils"
 )
 
@@ -26,11 +27,11 @@ func (n *Nominatim) Geocode(toponym string) (*GeoCoords, error) {
 		return nil, err
 	}
 
-	body, err := utils.HttpGet(requestFullURL, "application/json")
-
+	resp, err := utils.HttpGet(requestFullURL, types.JsonAcceptMimeType)
 	if err != nil {
 		return nil, err
 	}
+	body := resp.Body
 
 	var foundToponyms []FoundToponymJSON
 	err = json.Unmarshal(body, &foundToponyms)

@@ -65,7 +65,7 @@ func TestExtractSpeciesFromPetCardPage(t *testing.T) {
 func TestExtractCardTypeFromPetCardPage(t *testing.T) {
 	testCases := []struct {
 		path     string
-		expected types.CardType
+		expected types.EventType
 	}{
 		{"./testdata/164921.html.dump", types.Lost},
 		{"./testdata/164923.html.dump", types.Found},
@@ -80,7 +80,7 @@ func TestExtractCardTypeFromPetCardPage(t *testing.T) {
 		}
 		catalogHtml := string(fileContent)
 
-		var extractedType types.CardType = ExtractCardTypeFromCardPage(ParseHtmlContent(catalogHtml))
+		var extractedType types.EventType = ExtractCardTypeFromCardPage(ParseHtmlContent(catalogHtml))
 		if extractedType != testCase.expected {
 			t.Logf("Wrong card type extracted for %s. Expected %v, but got %v", testCase.path, testCase.expected, extractedType)
 			t.Fail()
@@ -143,12 +143,12 @@ func TestSmallPhotoUrlFromCardPage(t *testing.T) {
 
 func TestExtractAddressFromPetCardPage(t *testing.T) {
 	testCases := []struct {
-		path, address string
+		path, city, address string
 	}{
-		{"./testdata/164921.html.dump", "Оренбург, Центральный"},
-		{"./testdata/164923.html.dump", "Орехово-Зуево, Демихово"},
-		{"./testdata/164929.html.dump", "Владивосток, Владивосток, район Арт-пляжа."},
-		{"./testdata/164931.html.dump", "Сургут, г. Сургут, пр. Пролетарский 8/1-8/2"},
+		{"./testdata/164921.html.dump", "Оренбург", "Центральный"},
+		{"./testdata/164923.html.dump", "Орехово-Зуево", "Демихово"},
+		{"./testdata/164929.html.dump", "Владивосток", "Владивосток, район Арт-пляжа."},
+		{"./testdata/164931.html.dump", "Сургут", "г. Сургут, пр. Пролетарский 8/1-8/2"},
 	}
 
 	for _, testCase := range testCases {
@@ -158,9 +158,14 @@ func TestExtractAddressFromPetCardPage(t *testing.T) {
 		}
 		catalogHtml := string(fileContent)
 
-		var extractedAddress string = ExtractAddressFromCardPage(ParseHtmlContent(catalogHtml))
-		if extractedAddress != testCase.address {
-			t.Logf("Wrong card type extracted for %s. Expected \"%v\", but got \"%v\"", testCase.path, testCase.address, extractedAddress)
+		var extracted *CityAndAddress = ExtractAddressFromCardPage(ParseHtmlContent(catalogHtml))
+		if extracted.City != testCase.city {
+			t.Logf("Wrong city extracted for %s. Expected \"%v\", but got \"%v\"", testCase.path, testCase.city, extracted.City)
+			t.Fail()
+		}
+
+		if extracted.Address != testCase.address {
+			t.Logf("Wrong address extracted for %s. Expected \"%v\", but got \"%v\"", testCase.path, testCase.city, extracted.City)
 			t.Fail()
 		}
 	}

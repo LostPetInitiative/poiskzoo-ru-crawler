@@ -3,12 +3,17 @@ package main
 import (
 	"container/heap"
 	"errors"
+	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strconv"
+	"sync"
+	"time"
 
+	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/crawler"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/types"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/utils"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/version"
@@ -27,8 +32,13 @@ type void struct{}
 
 var voidVal void
 
+const maxKnownCardsCount = 10000
+const defaultPollInterval time.Duration = 10 * 60 * 1e9 // 10 min
+
 func main() {
 	log.SetFlags(log.LUTC | log.Ltime)
+
+	log.Printf("Starting up...\tVersion: %s\tGit commit: %.6s\n", version.AppVersion, version.GitCommit)
 
 	cardsDir, ok := os.LookupEnv(CARDS_DIR_ENVVAR)
 	if !ok {
@@ -62,12 +72,123 @@ func main() {
 		heap.Push(knownIDsHeap, types.CardID(parsedID))
 	}
 
-	var knownIDS map[int]void = make(map[int]void, 0)
-	log.Printf("Found %d stored cards", len(knownIDS))
+	foundKnownIdsCount := len(*knownIDsHeap)
+	log.Printf("Found %d stored cards\n", foundKnownIdsCount)
 
-	//	var knownCards []CardID
+	for {
+		startTime := time.Now().UTC()
 
-	// TODO: load from disk
-	//	knownCards = make([]CardID, 0) // empty for now
-	log.Printf("Starting up...\nVersion: %s\nGit commit: %.6s\n", version.AppVersion, version.GitCommit)
+		foundKnownIdsCount := len(*knownIDsHeap)
+		log.Printf("Considering %d already downloaded cards\n", foundKnownIdsCount)
+
+		if foundKnownIdsCount > maxKnownCardsCount {
+			log.Printf("Will use only latest %d of known cards out of %d", maxKnownCardsCount, foundKnownIdsCount)
+			*knownIDsHeap = (*knownIDsHeap)[:maxKnownCardsCount]
+		}
+
+		// log.Printf("Cards: %v\n", *knownIDsHeap)
+
+		var knownCardsIdSet map[types.CardID]void = make(map[types.CardID]void)
+		for _, v := range *knownIDsHeap {
+			knownCardsIdSet[v] = voidVal
+		}
+
+		// fetching catalog
+		var newDetectedCardIDs []types.CardID = nil
+		if len(knownCardsIdSet) == 0 {
+			// fetching only the first page
+			log.Println("The card storage is empty. Fetching the first catalog page page...")
+			newDetectedCardIDs, err = crawler.GetCardCatalogPage(0)
+			if err != nil {
+				log.Panicf("Failed to get catalog page: %v\n", err)
+			}
+		} else {
+			// looking for
+			log.Println("Fetching the catalog pages util we find the known card")
+			var pageNum int = 1
+		pagesLoop:
+			for {
+				log.Printf("Fetching catalog page %d...\n", pageNum)
+				pageNewDetectedCardIDs, err := crawler.GetCardCatalogPage(0)
+				if err != nil {
+					log.Panicf("Failed to get catalog page: %v\n", err)
+				}
+				log.Printf("Got %d cards for page %d of the catalog\n", len(pageNewDetectedCardIDs), pageNum)
+
+				if newDetectedCardIDs == nil {
+					newDetectedCardIDs = pageNewDetectedCardIDs
+				} else {
+					newDetectedCardIDs = append(newDetectedCardIDs, pageNewDetectedCardIDs...)
+				}
+
+				// analyzing pageNewDetectedCardIDs for intersection with known IDS
+				for _, newCardID := range pageNewDetectedCardIDs {
+					if _, exists := knownCardsIdSet[newCardID]; exists {
+						log.Printf("Found already known card %d at page %d\n", newCardID, pageNum)
+						break pagesLoop
+					}
+				}
+
+				pageNum += 1
+			}
+		}
+
+		// finding what exactly cards are new (not previously downloaded)
+		var newCardsIDs []types.CardID = make([]types.CardID, 0, len(newDetectedCardIDs))
+		for _, newCardIdCandidate := range newDetectedCardIDs {
+			if _, alreadyDownloaded := knownCardsIdSet[newCardIdCandidate]; !alreadyDownloaded {
+				newCardsIDs = append(newCardsIDs, newCardIdCandidate)
+				heap.Push(knownIDsHeap, newCardIdCandidate)
+			}
+		}
+		log.Printf("%d new cards to download\n", len(newCardsIDs))
+
+		var readyCardsWG sync.WaitGroup = sync.WaitGroup{}
+		readyCardsWG.Add(len(newCardsIDs))
+
+		fetchCard := func(
+			toFetch types.CardID,
+			doneWG *sync.WaitGroup,
+		) {
+			cardFetchFailurePrinter := func() {
+				if a := recover(); a != nil {
+					log.Printf("Panic during fetching of card %d: %v", toFetch, a)
+					panic(a)
+				}
+			}
+			defer cardFetchFailurePrinter()
+
+			defer doneWG.Done()
+			log.Printf("Fetching card %d...\n", toFetch)
+			fetchedCard, err := crawler.GetPetCard(toFetch)
+			if err != nil {
+				log.Panicf("Failed to download card %d: %v\n", toFetch, err)
+			}
+			log.Printf("Downloaded card %d\n", toFetch)
+			fetchedImage, err := utils.HttpGet(fetchedCard.ImagesURL, "*/*")
+			if err != nil {
+				log.Panicf("Failed to download image for card %d: %v\n", toFetch, err)
+			}
+			log.Printf("Downloaded image for card %d (%d bytes; mime %s)\n", toFetch, len(fetchedImage.Body), fetchedImage.ContentType)
+
+			err = os.Mkdir(path.Join(cardsDir, fmt.Sprintf("%d", toFetch)), 0644)
+			if err != nil {
+				log.Panicf("Failed to create card %d dir: %v", toFetch, cardsDir)
+			}
+		}
+
+		for _, newCardID := range newCardsIDs {
+			go fetchCard(newCardID, &readyCardsWG)
+		}
+		readyCardsWG.Wait()
+		log.Printf("All %d new cards are fetched\n", len(newCardsIDs))
+
+		endTime := time.Now().UTC()
+		elapsed := endTime.Sub(startTime)
+		toWait := defaultPollInterval - elapsed
+		if toWait > 0 {
+			log.Printf("Sleeping for %v...", toWait)
+			time.Sleep(toWait)
+		}
+	}
 }

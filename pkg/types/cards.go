@@ -19,14 +19,14 @@ func (s Species) String() string {
 	return species[s-1]
 }
 
-type CardType int
+type EventType int
 
 const (
-	Found CardType = iota + 1
+	Found EventType = iota + 1
 	Lost
 )
 
-func (c CardType) String() string {
+func (c EventType) String() string {
 	cardTypes := []string{"found", "lost"}
 	if c < Found || c > Lost {
 		panic(fmt.Sprintf("Unexpected card type: %d", c))

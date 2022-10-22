@@ -1,10 +1,10 @@
 package types
 
 // to be set in http Accept request header
-const HtmlAcceptMimeType = "text/html"
+const HtmlMimeType = "text/html"
 
 // to be set in http Accept request header
-const HtmlAcceptAnyMimeType = "*/*"
+const AnyMimeType = "*/*"
 
 // to be set in http Accept request header
-const JsonAcceptMimeType = "application/json"
+const JsonMimeType = "application/json"

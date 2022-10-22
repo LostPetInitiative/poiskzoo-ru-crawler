@@ -52,9 +52,32 @@ func HttpGet(targetUrl *url.URL, acceptHeader string) (*HttpFetchResult, error) 
 	return &HttpFetchResult{body, contentType}, nil
 }
 
+// Performs the HTTP POST request to the specified targetUrl. Returns successful HTTP code, if returned err is nil
+func HttpPost(targetUrl *url.URL, contentTypeHeader string, body []byte) (*int, error) {
+	req, err := http.NewRequest("POST", targetUrl.String(), bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentTypeHeader)
+	SetUserAgentHeader(req.Header)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 == 2 {
+		// successful
+		return &resp.StatusCode, nil
+	} else {
+		return nil, fmt.Errorf("not successful HTTP status: %s", resp.Status)
+	}
+}
+
 // Performs the HTTP GET request over the specified targetURL, recodes the response to UTF-8
 func HttpGetHtml(targetUrl *url.URL) (*HttpFetchResult, error) {
-	resp, err := HttpGet(targetUrl, types.HtmlAcceptMimeType)
+	resp, err := HttpGet(targetUrl, types.HtmlMimeType)
 	if err != nil {
 		return nil, err
 	}

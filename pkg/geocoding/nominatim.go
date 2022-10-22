@@ -27,7 +27,7 @@ func (n *Nominatim) Geocode(toponym string) (*GeoCoords, error) {
 		return nil, err
 	}
 
-	resp, err := utils.HttpGet(requestFullURL, types.JsonAcceptMimeType)
+	resp, err := utils.HttpGet(requestFullURL, types.JsonMimeType)
 	if err != nil {
 		return nil, err
 	}

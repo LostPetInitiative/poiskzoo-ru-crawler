@@ -69,7 +69,12 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 	if notificationUrl != nil {
 		// doing notification
 		log.Printf("%d:\tSending snapshot to pipeline...\n\n", card)
-		panic("not implemented")
+		_, err = utils.HttpPost(notificationUrl, types.JsonMimeType, []byte(serialized))
+		if err != nil {
+			log.Panicf("%d:Failed to notify pipeline %v\t\n", card, err)
+		} else {
+			log.Printf("%d:\tSuccessfully notified the pipeline\n", card)
+		}
 	} else {
 		log.Printf("%d:\tSkipped pipeline notification, as no notification URL is set\n", card)
 	}

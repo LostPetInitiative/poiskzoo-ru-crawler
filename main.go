@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"sync"
@@ -25,6 +26,7 @@ import (
 // 5. notify pipeline
 
 const CARDS_DIR_ENVVAR = "CARDS_DIR"
+const PIPELINE_NOTIFICATION_URL = "PIPELINE_URL"
 
 type void struct{}
 
@@ -32,7 +34,7 @@ var voidVal void
 
 const workerCount = 2
 const maxKnownCardsCount = 10000
-const defaultPollInterval time.Duration = 1 * 60 * 1e9
+const defaultPollInterval time.Duration = 5 * 60 * 1e9
 
 func main() {
 	log.SetFlags(log.LUTC | log.Ltime)
@@ -45,6 +47,19 @@ func main() {
 		cardsDir = "./db"
 	} else {
 		log.Printf("%s env var is set to %s, using it as cards directory\n", CARDS_DIR_ENVVAR, cardsDir)
+	}
+
+	pipelineNotificationUrlStr, ok := os.LookupEnv(PIPELINE_NOTIFICATION_URL)
+	var pipelineNotificationUrl *url.URL = nil
+	var err error
+	if !ok {
+		log.Printf("%s env var is not set, will not do pipeline notification\n", PIPELINE_NOTIFICATION_URL)
+	} else {
+		log.Printf("%s env var is set to %s, using it to notify pipeline\n", PIPELINE_NOTIFICATION_URL, pipelineNotificationUrlStr)
+		pipelineNotificationUrl, err = url.Parse(pipelineNotificationUrlStr)
+		if err != nil {
+			log.Panicf("Failed to parse pipeline notification URL: %v", err)
+		}
 	}
 
 	// reading card dirs
@@ -148,7 +163,7 @@ func main() {
 
 		runWorker := func() {
 			for card := range cardsJobQueue {
-				crawler.DoCardJob(card, cardsDir, nil) // TODO: specify notification url
+				crawler.DoCardJob(card, cardsDir, pipelineNotificationUrl)
 			}
 			workersWG.Done()
 		}

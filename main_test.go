@@ -17,7 +17,7 @@ func TestFullCardDownload(t *testing.T) {
 		t.FailNow()
 	}
 
-	image, err := utils.HttpGet(card.ImagesURL, types.HtmlAcceptAnyMimeType)
+	image, err := utils.HttpGet(card.ImagesURL, types.AnyMimeType)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()

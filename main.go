@@ -3,12 +3,10 @@ package main
 import (
 	"container/heap"
 	"errors"
-	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"strconv"
 	"sync"
 	"time"
@@ -32,8 +30,9 @@ type void struct{}
 
 var voidVal void
 
+const workerCount = 2
 const maxKnownCardsCount = 10000
-const defaultPollInterval time.Duration = 10 * 60 * 1e9 // 10 min
+const defaultPollInterval time.Duration = 1 * 60 * 1e9
 
 func main() {
 	log.SetFlags(log.LUTC | log.Ltime)
@@ -143,44 +142,27 @@ func main() {
 		}
 		log.Printf("%d new cards to download\n", len(newCardsIDs))
 
-		var readyCardsWG sync.WaitGroup = sync.WaitGroup{}
-		readyCardsWG.Add(len(newCardsIDs))
+		var cardsJobQueue chan types.CardID = make(chan types.CardID)
+		var workersWG sync.WaitGroup
+		workersWG.Add(workerCount)
 
-		fetchCard := func(
-			toFetch types.CardID,
-			doneWG *sync.WaitGroup,
-		) {
-			cardFetchFailurePrinter := func() {
-				if a := recover(); a != nil {
-					log.Printf("Panic during fetching of card %d: %v", toFetch, a)
-					panic(a)
-				}
+		runWorker := func() {
+			for card := range cardsJobQueue {
+				crawler.DoCardJob(card, cardsDir, nil) // TODO: specify notification url
 			}
-			defer cardFetchFailurePrinter()
+			workersWG.Done()
+		}
 
-			defer doneWG.Done()
-			log.Printf("Fetching card %d...\n", toFetch)
-			fetchedCard, err := crawler.GetPetCard(toFetch)
-			if err != nil {
-				log.Panicf("Failed to download card %d: %v\n", toFetch, err)
-			}
-			log.Printf("Downloaded card %d\n", toFetch)
-			fetchedImage, err := utils.HttpGet(fetchedCard.ImagesURL, "*/*")
-			if err != nil {
-				log.Panicf("Failed to download image for card %d: %v\n", toFetch, err)
-			}
-			log.Printf("Downloaded image for card %d (%d bytes; mime %s)\n", toFetch, len(fetchedImage.Body), fetchedImage.ContentType)
-
-			err = os.Mkdir(path.Join(cardsDir, fmt.Sprintf("%d", toFetch)), 0644)
-			if err != nil {
-				log.Panicf("Failed to create card %d dir: %v", toFetch, cardsDir)
-			}
+		for i := 0; i < workerCount; i++ {
+			go runWorker()
 		}
 
 		for _, newCardID := range newCardsIDs {
-			go fetchCard(newCardID, &readyCardsWG)
+			cardsJobQueue <- newCardID
 		}
-		readyCardsWG.Wait()
+		close(cardsJobQueue)
+
+		workersWG.Wait()
 		log.Printf("All %d new cards are fetched\n", len(newCardsIDs))
 
 		endTime := time.Now().UTC()

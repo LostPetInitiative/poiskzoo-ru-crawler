@@ -44,7 +44,7 @@ const (
 
 func (s Sex) String() string {
 	sexes := []string{"unknown", "male", "female"}
-	if s < Male || s > Female {
+	if s < UndefinedSex || s > Female {
 		panic(fmt.Sprintf("Unexpected animal sex: %d", s))
 	}
 	return sexes[s]

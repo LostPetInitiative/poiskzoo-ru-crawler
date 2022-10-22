@@ -63,16 +63,17 @@ func HttpGetHtml(targetUrl *url.URL) (*HttpFetchResult, error) {
 	if strings.HasPrefix(resp.ContentType, "text/html; charset=") {
 		declaredEncoding = strings.TrimPrefix(resp.ContentType, "text/html; charset=")
 	}
-	log.Printf("HTML fetch: declared HTML page encoding: %s\n", declaredEncoding)
+	// log.Printf("HTML fetch: declared HTML page encoding: %s\n", declaredEncoding)
 
-	determinedEnc, encName, certain := charset.DetermineEncoding(resp.Body, declaredEncoding)
-	log.Printf("HTML fetch: detected enc %v (%v); certain: %v\n", determinedEnc, encName, certain)
+	// determinedEnc, encName, certain := charset.DetermineEncoding(resp.Body, declaredEncoding)
+	_, encName, _ := charset.DetermineEncoding(resp.Body, declaredEncoding)
+	// log.Printf("HTML fetch: detected enc %v (%v); certain: %v\n", determinedEnc, encName, certain)
 
 	bodyReader := bytes.NewReader(resp.Body)
 	if declaredEncoding == "" {
 		declaredEncoding = encName
 	}
-	log.Printf("HTML fetch: treating encoding as %v. ReEncoding body from it into UTF-8\n", declaredEncoding)
+	// log.Printf("HTML fetch: treating encoding as %v. ReEncoding body from it into UTF-8\n", declaredEncoding)
 	reEncodedBodyReader, err := charset.NewReaderLabel(declaredEncoding, bodyReader)
 	if err != nil {
 		log.Panicln(err)

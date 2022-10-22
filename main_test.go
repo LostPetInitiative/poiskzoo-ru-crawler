@@ -6,7 +6,6 @@ import (
 
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/crawler"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/geocoding"
-	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/storage"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/types"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/utils"
 )
@@ -24,7 +23,7 @@ func TestFullCardDownload(t *testing.T) {
 		t.FailNow()
 	}
 
-	jsonCard := storage.NewCardJSON(card,
+	jsonCard := crawler.NewCardJSON(card,
 		&geocoding.GeoCoords{Lat: 10.0, Lon: 20.0},
 		"hardcoded",
 		image.Body,
@@ -41,7 +40,8 @@ func TestFullCardDownload(t *testing.T) {
 	if expected != serialized {
 		for i := 0; i < len(expected) && i < len(serialized); i++ {
 			if expected[i] != serialized[i] {
-				t.Errorf("Expected != actual. Diff is at byte idx: %d", i)
+				t.Errorf("Expected != actual. Diff is at byte idx: %d\n", i)
+				t.Errorf("Actual: %v\n", serialized)
 				t.FailNow()
 			}
 		}

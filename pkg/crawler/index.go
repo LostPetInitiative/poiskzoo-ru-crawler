@@ -51,6 +51,7 @@ func GetCardCatalogPage(pageNum int) ([]types.CardID, error) {
 type PetCard struct {
 	ID        types.CardID
 	Species   types.Species
+	SexSpec   types.Sex
 	City      string
 	Address   string
 	EventTime time.Time
@@ -81,6 +82,7 @@ func GetPetCard(card types.CardID) (*PetCard, error) {
 	return &PetCard{
 		ID:        card,
 		Species:   ExtractSpeciesFromCardPage(parsed),
+		SexSpec:   ExtractAnimalSexSpecFromCardPage(parsed),
 		City:      cityWithAddress.City,
 		Address:   cityWithAddress.Address,
 		EventTime: ExtractEventDateFromCardPage(parsed, today),

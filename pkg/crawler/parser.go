@@ -89,7 +89,10 @@ func ExtractAddressFromCardPage(doc *html.Node) *CityAndAddress {
 	}
 
 	if regionNode == nil {
-		panic("Can't find address/region element on the page")
+		return &CityAndAddress{
+			City:    city,
+			Address: "",
+		}
 	}
 
 	text := make([]string, 0)
@@ -223,22 +226,28 @@ func ExtractSmallPhotoUrlFromCardPage(doc *html.Node) *url.URL {
 		panic("Could not find photo node")
 	}
 
+	var validPrefixes []string = []string{
+		"https://poiskzoo.ru/images/board/medium",
+		"https://poiskzoo.ru/images/board/big",
+	}
+
 	for _, attr := range photoNode.Attr {
 		if attr.Key == "src" {
 			urlText := attr.Val
-			const mediumPrefix string = "https://poiskzoo.ru/images/board/medium"
 			const smallPrefix string = "https://poiskzoo.ru/images/board/small"
-			if strings.HasPrefix(urlText, mediumPrefix) {
-				suffix := strings.TrimPrefix(urlText, mediumPrefix)
-				smallUrlText := fmt.Sprintf("%s%s?v=0053", smallPrefix, suffix)
-				result, err := url.Parse(smallUrlText)
-				if err != nil {
-					panic(fmt.Sprintf("Failed to parse url %s", smallUrlText))
+			for _, prefixCandidate := range validPrefixes {
+				if strings.HasPrefix(urlText, prefixCandidate) {
+					suffix := strings.TrimPrefix(urlText, prefixCandidate)
+					smallUrlText := fmt.Sprintf("%s%s?v=0053", smallPrefix, suffix)
+					result, err := url.Parse(smallUrlText)
+					if err != nil {
+						panic(fmt.Sprintf("Failed to parse url %s", smallUrlText))
+					}
+					return result
 				}
-				return result
-			} else {
-				panic(fmt.Sprintf("Unsupported image prefix in image url: %s", urlText))
 			}
+			panic(fmt.Sprintf("Unsupported image prefix in image url: %s", urlText))
+
 		}
 	}
 	panic("Image node does not contain src attribute")

@@ -1,4 +1,4 @@
-package storage
+package crawler
 
 import (
 	"encoding/json"
@@ -7,16 +7,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/crawler"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/geocoding"
+	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/types"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/utils"
 )
 
 type LocationJSON struct {
-	Address    string  `json:"Address"`
-	Lat        float64 `json:"Lat"`
-	Lon        float64 `json:"Lon"`
-	Provenance string  `json:"CoordsProvenance"`
+	Address    string   `json:"Address"`
+	Lat        *float64 `json:"Lat,omitempty"`
+	Lon        *float64 `json:"Lon,omitempty"`
+	Provenance string   `json:"CoordsProvenance"`
 }
 
 type ContactInfoJSON struct {
@@ -41,8 +41,9 @@ type CardJSON struct {
 	EventTimeProvenance string             `json:"event_time_provenance"`
 	EventType           string             `json:"card_type"`
 	ContactInfo         *ContactInfoJSON   `json:"contact_info"`
-	Images              []EncodedImageJSON `json:"images"`
 	ProvenanceURL       string             `json:"provenance_url"`
+	AnimalSexSpec       *string            `json:"animal_sex,omitempty"`
+	Images              []EncodedImageJSON `json:"images"`
 }
 
 func (c *CardJSON) JsonSerialize() string {
@@ -54,7 +55,7 @@ func (c *CardJSON) JsonSerialize() string {
 }
 
 func NewCardJSON(
-	card *crawler.PetCard,
+	card *PetCard,
 	geoCoords *geocoding.GeoCoords,
 	geoCoordsProvenance string,
 	imageData []byte,
@@ -62,15 +63,28 @@ func NewCardJSON(
 
 	var emptyStrSlice []string = make([]string, 0)
 
+	var location *LocationJSON = &LocationJSON{
+		Address:    fmt.Sprintf("%s, %s", card.City, card.Address),
+		Provenance: geoCoordsProvenance,
+	}
+	if geoCoords != nil {
+		location.Lat = &geoCoords.Lat
+		location.Lon = &geoCoords.Lon
+	}
+
+	var animalSexSpec *string
+	if card.SexSpec == types.UndefinedSex {
+		animalSexSpec = nil
+	} else {
+		s := card.SexSpec.String()
+		animalSexSpec = &s
+	}
+
 	return &CardJSON{
-		Uid:     fmt.Sprintf("poiskzooru_%d", card.ID),
-		Species: card.Species.String(),
-		Location: &LocationJSON{
-			Address:    fmt.Sprintf("%s, %s", card.City, card.Address),
-			Lat:        geoCoords.Lat,
-			Lon:        geoCoords.Lon,
-			Provenance: geoCoordsProvenance,
-		},
+		Uid:                 fmt.Sprintf("poiskzooru_%d", card.ID),
+		Species:             card.Species.String(),
+		AnimalSexSpec:       animalSexSpec,
+		Location:            location,
 		EventTime:           card.EventTime,
 		EventTimeProvenance: "Указано на сайте poiskzoo.ru",
 		EventType:           card.EventType.String(),

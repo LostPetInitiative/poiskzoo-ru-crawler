@@ -80,6 +80,13 @@ func NewCardJSON(
 		animalSexSpec = &s
 	}
 
+	var images []EncodedImageJSON
+	if imageData != nil {
+		images = []EncodedImageJSON{*EncodeImage(imageData, imageMime)}
+	} else {
+		images = make([]EncodedImageJSON, 0)
+	}
+
 	return &CardJSON{
 		Uid:                 fmt.Sprintf("poiskzooru_%d", card.ID),
 		Species:             card.Species.String(),
@@ -95,7 +102,7 @@ func NewCardJSON(
 			Email:   emptyStrSlice,
 			Name:    "",
 		},
-		Images:        []EncodedImageJSON{*EncodeImage(imageData, imageMime)},
+		Images:        images,
 		ProvenanceURL: fmt.Sprintf("https://poiskzoo.ru/%d", card.ID),
 	}
 

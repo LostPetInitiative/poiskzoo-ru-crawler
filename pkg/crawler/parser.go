@@ -223,7 +223,7 @@ func ExtractAnimalSexSpecFromCardPage(doc *html.Node) types.Sex {
 func ExtractSmallPhotoUrlFromCardPage(doc *html.Node) *url.URL {
 	photoNode := htmlquery.FindOne(doc, "//img[contains(@class, 'bd_image_small2')]")
 	if photoNode == nil {
-		panic("Could not find photo node")
+		return nil
 	}
 
 	var validPrefixes []string = []string{

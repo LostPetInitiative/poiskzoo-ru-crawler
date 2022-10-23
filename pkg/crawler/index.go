@@ -70,8 +70,6 @@ func GetPetCard(card types.CardID) (*PetCard, error) {
 		return nil, err
 	}
 
-	// TODO: account for content-type header? seams that this header is misleading for poiskzoo.ru. The true encoding is utf-8, while content encoding headers says "windows-1251"
-	// TODO: parse encoding
 	parsed := ParseHtmlContent(string(resp.Body))
 
 	cityWithAddress := ExtractAddressFromCardPage(parsed)

@@ -21,19 +21,64 @@ func ParseHtmlContent(htmlContent string) *html.Node {
 	return doc
 }
 
+type Card struct {
+	Id               types.CardID
+	Url              string
+	HasPaidPromotion bool
+}
+
 // Returns relative URL from cards found on the catalog page
-func ExtractCardUrlsFromDocument(doc *html.Node) []string {
-	nodes, err := htmlquery.QueryAll(doc, "//div[contains(@class, 'pzplitkadiv')]//div[contains(@class, 'pzplitkalink')]/a")
+func ExtractCardsFromCatalogDocument(doc *html.Node) []Card {
+	//nodes, err := htmlquery.QueryAll(doc, "//div[contains(@class, 'pzplitkadiv')]//div[contains(@class, 'pzplitkalink')]/a")
+	nodes, err := htmlquery.QueryAll(doc, "//div[contains(@class, 'pzplitkadiv')]")
 	if err != nil {
 		panic(`not a valid XPath expression.`)
 	}
 
-	res := make([]string, len(nodes))
+	res := make([]Card, len(nodes))
 
 	for i, n := range nodes {
+		var isPaidPromotion bool
+		var found bool = false
 		for _, a := range n.Attr {
+			if a.Key == "class" {
+				switch {
+				case strings.Contains(a.Val, "blockdivbaza_vip1"):
+					isPaidPromotion = true
+				case strings.Contains(a.Val, "blockdivbaza_vip0"):
+					isPaidPromotion = false
+				default:
+					panic("Can't find paid promotion indication class")
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			panic("Can't find class attr for promotion indication")
+		}
+		linkNode, err := htmlquery.Query(n, "div[contains(@class, 'pzplitkalink')]/a")
+		if err != nil {
+			panic("Can't find link for the card")
+		}
+		for _, a := range linkNode.Attr {
 			if a.Key == "href" {
-				res[i] = a.Val
+				// urls are like "/bijsk/propala-koshka/162257"
+				url := a.Val
+				lastIdx := strings.LastIndex(url, "/")
+				if lastIdx == -1 {
+					panic(fmt.Sprintf("card URL in not in supported format: %q", url))
+				}
+				cardIdStr := url[lastIdx+1:]
+				cardID, err := strconv.ParseInt(cardIdStr, 10, 32)
+				if err != nil {
+					panic(err)
+				}
+				res[i] = Card{
+					Id:               types.CardID(cardID),
+					Url:              url,
+					HasPaidPromotion: isPaidPromotion,
+				}
 				break
 			}
 		}

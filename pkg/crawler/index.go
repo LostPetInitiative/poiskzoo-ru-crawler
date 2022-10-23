@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/types"
@@ -14,7 +12,7 @@ import (
 
 const poiskZooBaseURL string = "https://poiskzoo.ru"
 
-func GetCardCatalogPage(pageNum int) ([]types.CardID, error) {
+func GetCardCatalogPage(pageNum int) ([]Card, error) {
 	effectiveUrlStr := fmt.Sprintf("%s/poteryashka/page-%d", poiskZooBaseURL, pageNum)
 	effectiveUrl, err := url.Parse(effectiveUrlStr)
 	if err != nil {
@@ -28,24 +26,9 @@ func GetCardCatalogPage(pageNum int) ([]types.CardID, error) {
 	body := resp.Body
 
 	parsedNode := ParseHtmlContent(string(body))
-	var urls []string = ExtractCardUrlsFromDocument(parsedNode)
+	var cards []Card = ExtractCardsFromCatalogDocument(parsedNode)
 
-	var result []types.CardID = make([]types.CardID, len(urls))
-	for i, url := range urls {
-		// urls are like "/bijsk/propala-koshka/162257"
-		lastIdx := strings.LastIndex(url, "/")
-		if lastIdx == -1 {
-			panic(fmt.Sprintf("card URL in not in supported format: %q", url))
-		}
-		cardIdStr := url[lastIdx+1:]
-		cardID, err := strconv.ParseInt(cardIdStr, 10, 32)
-		if err != nil {
-			return nil, err
-		}
-		result[i] = types.CardID(cardID)
-	}
-	return result, nil
-
+	return cards, nil
 }
 
 type PetCard struct {

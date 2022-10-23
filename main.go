@@ -129,11 +129,11 @@ func main() {
 		}
 
 		// fetching catalog
-		var newDetectedCardIDs []types.CardID = nil
+		var newDetectedCards []crawler.Card = nil
 		if len(knownCardsIdSet) == 0 {
 			// fetching only the first page
 			log.Println("The card storage is empty. Fetching the first catalog page page...")
-			newDetectedCardIDs, err = crawler.GetCardCatalogPage(0)
+			newDetectedCards, err = crawler.GetCardCatalogPage(1)
 			if err != nil {
 				log.Panicf("Failed to get catalog page: %v\n", err)
 			}
@@ -144,22 +144,26 @@ func main() {
 		pagesLoop:
 			for {
 				log.Printf("Fetching catalog page %d...\n", pageNum)
-				pageNewDetectedCardIDs, err := crawler.GetCardCatalogPage(0)
+				pageNewDetectedCards, err := crawler.GetCardCatalogPage(pageNum)
 				if err != nil {
 					log.Panicf("Failed to get catalog page: %v\n", err)
 				}
-				log.Printf("Got %d cards for page %d of the catalog\n", len(pageNewDetectedCardIDs), pageNum)
+				log.Printf("Got %d cards for page %d of the catalog\n", len(pageNewDetectedCards), pageNum)
 
-				if newDetectedCardIDs == nil {
-					newDetectedCardIDs = pageNewDetectedCardIDs
+				if newDetectedCards == nil {
+					newDetectedCards = pageNewDetectedCards
 				} else {
-					newDetectedCardIDs = append(newDetectedCardIDs, pageNewDetectedCardIDs...)
+					newDetectedCards = append(newDetectedCards, pageNewDetectedCards...)
 				}
 
 				// analyzing pageNewDetectedCardIDs for intersection with known IDS
-				for _, newCardID := range pageNewDetectedCardIDs {
-					if _, exists := knownCardsIdSet[newCardID]; exists {
-						log.Printf("Found already known card %d at page %d\n", newCardID, pageNum)
+				for _, newCard := range pageNewDetectedCards {
+					if newCard.HasPaidPromotion {
+						// ignoring promoted card in look for already downloaded
+						continue
+					}
+					if _, exists := knownCardsIdSet[newCard.Id]; exists {
+						log.Printf("Found already known card %d at page %d\n", newCard.Id, pageNum)
 						break pagesLoop
 					}
 				}
@@ -169,11 +173,11 @@ func main() {
 		}
 
 		// finding what exactly cards are new (not previously downloaded)
-		var newCardsIDs []types.CardID = make([]types.CardID, 0, len(newDetectedCardIDs))
-		for _, newCardIdCandidate := range newDetectedCardIDs {
-			if _, alreadyDownloaded := knownCardsIdSet[newCardIdCandidate]; !alreadyDownloaded {
-				newCardsIDs = append(newCardsIDs, newCardIdCandidate)
-				heap.Push(knownIDsHeap, newCardIdCandidate)
+		var newCardsIDs []types.CardID = make([]types.CardID, 0, len(newDetectedCards))
+		for _, newCardIdCandidate := range newDetectedCards {
+			if _, alreadyDownloaded := knownCardsIdSet[newCardIdCandidate.Id]; !alreadyDownloaded {
+				newCardsIDs = append(newCardsIDs, newCardIdCandidate.Id)
+				heap.Push(knownIDsHeap, newCardIdCandidate.Id)
 			}
 		}
 		log.Printf("%d new cards to download\n", len(newCardsIDs))

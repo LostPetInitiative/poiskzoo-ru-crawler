@@ -17,21 +17,35 @@ func TestExtractCardUrlsFromCatalogPage(t *testing.T) {
 	}
 	catalogHtml := string(fileContent)
 
-	extractedUrls := ExtractCardUrlsFromDocument(ParseHtmlContent(catalogHtml))
+	extractedUrls := ExtractCardsFromCatalogDocument(ParseHtmlContent(catalogHtml))
 	const expectedCount int = 52
 	if len(extractedUrls) != expectedCount {
 		t.Logf("Expected to extract %d card IDs but extracted %d", expectedCount, len(extractedUrls))
 		t.Fail()
 	}
 
-	urlMap := make(map[string]int)
-	for i, url := range extractedUrls {
-		urlMap[url] = i
+	cardMap := make(map[int]Card)
+	for _, card := range extractedUrls {
+		cardMap[int(card.Id)] = card
 	}
 
-	_, exists := urlMap["/stavropol/najdena-sobaka/164833"]
+	card, exists := cardMap[164833]
 	if !exists {
 		t.Logf("Did not find expected URL in the result set")
+		t.Fail()
+	}
+	if card.HasPaidPromotion {
+		t.Log("Card 164833 is promoted")
+		t.Fail()
+	}
+
+	card, exists = cardMap[164656]
+	if !exists {
+		t.Log("Did not find expected URL in the result set")
+		t.Fail()
+	}
+	if !card.HasPaidPromotion {
+		t.Log("Card 164656 is not promoted")
 		t.Fail()
 	}
 }

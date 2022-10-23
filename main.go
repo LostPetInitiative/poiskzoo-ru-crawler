@@ -36,18 +36,23 @@ const workerCount = 2
 const maxKnownCardsCount = 10000
 const defaultPollInterval time.Duration = 5 * 60 * 1e9
 
+// Returns the value of specified env var, if it is not set, returns default
+func ExtractEnvOrDefaultString(envVar string, defaultVal string) string {
+	v, ok := os.LookupEnv(envVar)
+	if !ok {
+		log.Printf("%s env var is not set, using default value \"%v\"\n", envVar, defaultVal)
+		return defaultVal
+	}
+	log.Printf("%s env var is set to %s\n", CARDS_DIR_ENVVAR, v)
+	return v
+}
+
 func main() {
 	log.SetFlags(log.LUTC | log.Ltime)
 
 	log.Printf("Starting up...\tVersion: %s\tGit commit: %.6s\n", version.AppVersion, version.GitCommit)
 
-	cardsDir, ok := os.LookupEnv(CARDS_DIR_ENVVAR)
-	if !ok {
-		log.Printf("%s env var is not set, using default \"./db\"\n", CARDS_DIR_ENVVAR)
-		cardsDir = "./db"
-	} else {
-		log.Printf("%s env var is set to %s, using it as cards directory\n", CARDS_DIR_ENVVAR, cardsDir)
-	}
+	cardsDir := ExtractEnvOrDefaultString(CARDS_DIR_ENVVAR, "./db")
 
 	pipelineNotificationUrlStr, ok := os.LookupEnv(PIPELINE_NOTIFICATION_URL)
 	var pipelineNotificationUrl *url.URL = nil

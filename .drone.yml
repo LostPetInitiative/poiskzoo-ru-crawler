@@ -14,38 +14,40 @@ steps:
   - go build -v -ldflags "-X 'github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/version.GitCommit=${DRONE_COMMIT}' -X 'github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/version.AppVersion=0.0.0.${DRONE_BUILD_NUMBER}'"
   - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
   - curl -Os https://uploader.codecov.io/latest/linux/codecov && chmod +x codecov && ./codecov
-# - name: build & push docker image (main branch)
-#   image: plugins/docker
-#   when:
-#     branch:
-#     - main
-#     event:
-#       exclude:
-#         - tag
-#   settings:
-#     username:
-#       from_secret: docker_username
-#     password:
-#       from_secret: docker_password
-#     repo: lostpetinitiative/trello-board-maintainer
-#     target: final
-#     auto_tag: true
-#     force_tag: true
-#     #build_args:
-#     # - VERSION=0.0.0.${DRONE_BUILD_NUMBER}
-# - name: build & push docker image (TAG)
-#   image: plugins/docker
-#   when:
-#     event:
-#     - tag
-#   settings:
-#     username:
-#       from_secret: docker_username
-#     password:
-#       from_secret: docker_password
-#     repo: lostpetinitiative/trello-board-maintainer
-#     target: final
-#     auto_tag: true
-#     force_tag: true
-#     #build_args:
-#     # - VERSION=${DRONE_TAG}.${DRONE_BUILD_NUMBER}
+- name: build & push docker image (main branch)
+  image: plugins/docker
+  when:
+    branch:
+    - main
+    event:
+      exclude:
+        - tag
+  settings:
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+    repo: lostpetinitiative/poiskzoo-ru-crawler
+    target: final
+    auto_tag: true
+    force_tag: true
+    build_args:
+     - VERSION=0.0.0.${DRONE_BUILD_NUMBER}
+     - GIT_COMMIT=${DRONE_COMMIT}
+- name: build & push docker image (TAG)
+  image: plugins/docker
+  when:
+    event:
+    - tag
+  settings:
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+    repo: lostpetinitiative/poiskzoo-ru-crawler
+    target: final
+    auto_tag: true
+    force_tag: true
+    build_args:
+     - VERSION=${DRONE_TAG}.${DRONE_BUILD_NUMBER}
+     - GIT_COMMIT=${DRONE_COMMIT}

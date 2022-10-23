@@ -21,6 +21,7 @@ func ParseHtmlContent(htmlContent string) *html.Node {
 	return doc
 }
 
+// Returns relative URL from cards found on the catalog page
 func ExtractCardUrlsFromDocument(doc *html.Node) []string {
 	nodes, err := htmlquery.QueryAll(doc, "//div[contains(@class, 'pzplitkadiv')]//div[contains(@class, 'pzplitkalink')]/a")
 	if err != nil {
@@ -54,7 +55,7 @@ func ExtractSpeciesFromCardPage(doc *html.Node) types.Species {
 	}
 }
 
-func ExtractCardTypeFromCardPage(doc *html.Node) types.CardType {
+func ExtractCardTypeFromCardPage(doc *html.Node) types.EventType {
 	node := htmlquery.FindOne(doc, "//h1[contains(@class, 'con_heading')]")
 	dataText := strings.ToLower(node.FirstChild.Data)
 	switch {
@@ -67,14 +68,20 @@ func ExtractCardTypeFromCardPage(doc *html.Node) types.CardType {
 	}
 }
 
-func ExtractAddressFromCardPage(doc *html.Node) string {
+type CityAndAddress struct {
+	City    string
+	Address string
+}
+
+func ExtractAddressFromCardPage(doc *html.Node) *CityAndAddress {
 	node := htmlquery.FindOne(doc, "//h1[contains(@class, 'con_heading')]")
 	dataText := node.FirstChild.Data
 	words := strings.Split(dataText, " ")
 	if len(words) < 1 {
 		panic("Heading does not contain enough data (city name at the end?)")
 	}
-	lastWord := words[len(words)-1]
+	city := words[len(words)-1]
+	//log.Printf("City is %s (%q)", city, city)
 
 	regionNode := htmlquery.FindOne(doc, "//strong[contains(text(), 'Район где')]")
 	if regionNode == nil {
@@ -82,11 +89,13 @@ func ExtractAddressFromCardPage(doc *html.Node) string {
 	}
 
 	if regionNode == nil {
-		panic("Can't find address/region element on the page")
+		return &CityAndAddress{
+			City:    city,
+			Address: "",
+		}
 	}
 
-	text := make([]string, 1)
-	text[0] = lastWord // this usually contains the City
+	text := make([]string, 0)
 
 	var curNode *html.Node = regionNode
 
@@ -108,7 +117,10 @@ func ExtractAddressFromCardPage(doc *html.Node) string {
 	}
 	textJoined := strings.Join(text, ", ")
 
-	return textJoined
+	return &CityAndAddress{
+		City:    city,
+		Address: textJoined,
+	}
 }
 
 // Parses time in HH:mm format as Duration since midnight
@@ -214,22 +226,28 @@ func ExtractSmallPhotoUrlFromCardPage(doc *html.Node) *url.URL {
 		panic("Could not find photo node")
 	}
 
+	var validPrefixes []string = []string{
+		"https://poiskzoo.ru/images/board/medium",
+		"https://poiskzoo.ru/images/board/big",
+	}
+
 	for _, attr := range photoNode.Attr {
 		if attr.Key == "src" {
 			urlText := attr.Val
-			const mediumPrefix string = "https://poiskzoo.ru/images/board/medium"
 			const smallPrefix string = "https://poiskzoo.ru/images/board/small"
-			if strings.HasPrefix(urlText, mediumPrefix) {
-				suffix := strings.TrimPrefix(urlText, mediumPrefix)
-				smallUrlText := fmt.Sprintf("%s%s?v=0053", smallPrefix, suffix)
-				result, err := url.Parse(smallUrlText)
-				if err != nil {
-					panic(fmt.Sprintf("Failed to parse url %s", smallUrlText))
+			for _, prefixCandidate := range validPrefixes {
+				if strings.HasPrefix(urlText, prefixCandidate) {
+					suffix := strings.TrimPrefix(urlText, prefixCandidate)
+					smallUrlText := fmt.Sprintf("%s%s?v=0053", smallPrefix, suffix)
+					result, err := url.Parse(smallUrlText)
+					if err != nil {
+						panic(fmt.Sprintf("Failed to parse url %s", smallUrlText))
+					}
+					return result
 				}
-				return result
-			} else {
-				panic(fmt.Sprintf("Unsupported image prefix in image url: %s", urlText))
 			}
+			panic(fmt.Sprintf("Unsupported image prefix in image url: %s", urlText))
+
 		}
 	}
 	panic("Image node does not contain src attribute")

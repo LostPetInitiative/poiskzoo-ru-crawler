@@ -9,12 +9,16 @@ type ListNode[TData any] struct {
 type LinkedList[TData any] struct {
 	First *ListNode[TData]
 	Last  *ListNode[TData]
-	Size  int
+	size  int
 }
 
 // Constructs an empty list
 func NewLinkedList[TData any]() *LinkedList[TData] {
 	return &LinkedList[TData]{}
+}
+
+func (l *LinkedList[TData]) Size() int {
+	return l.size
 }
 
 func NewLinkedListNode[TData any](data TData) *ListNode[TData] {
@@ -42,7 +46,7 @@ func (l *LinkedList[TData]) PushAsFirst(newFirst *ListNode[TData]) {
 		l.Last = newFirst
 	}
 
-	l.Size++
+	l.size++
 }
 
 // cuts out the specified element from the list
@@ -64,11 +68,11 @@ func (l *LinkedList[TData]) Remove(nodeToRemove *ListNode[TData]) {
 		next.Prev = prev
 	}
 
-	l.Size--
+	l.size--
 }
 
 func (l *LinkedList[TData]) RemoveLast() {
-	if l.Size == 0 {
+	if l.Size() == 0 {
 		panic("Can't remove the last node of the list as the list is empty")
 	}
 

@@ -1,13 +1,15 @@
-package utils
+package utils_test
 
 import (
 	"testing"
+
+	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/utils"
 )
 
 func TestOneElemList(t *testing.T) {
-	l := NewLinkedList[int]()
+	l := utils.NewLinkedList[int]()
 
-	l.PushAsFirst(NewLinkedListNode(20))
+	l.PushAsFirst(utils.NewLinkedListNode(20))
 
 	if l.First.Data != 20 {
 		t.Error("First elem is invalid")
@@ -19,18 +21,18 @@ func TestOneElemList(t *testing.T) {
 		t.Fail()
 	}
 
-	if l.Size != 1 {
+	if l.Size() != 1 {
 		t.Error("Size is invalid")
 		t.Fail()
 	}
 }
 
 func TestPushes(t *testing.T) {
-	l := NewLinkedList[int]()
+	l := utils.NewLinkedList[int]()
 
-	l.PushAsFirst(NewLinkedListNode(20))
-	l.PushAsFirst(NewLinkedListNode(30))
-	l.PushAsFirst(NewLinkedListNode(-1))
+	l.PushAsFirst(utils.NewLinkedListNode(20))
+	l.PushAsFirst(utils.NewLinkedListNode(30))
+	l.PushAsFirst(utils.NewLinkedListNode(-1))
 
 	if l.First.Data != -1 {
 		t.Error("First elem is invalid")
@@ -42,18 +44,18 @@ func TestPushes(t *testing.T) {
 		t.Fail()
 	}
 
-	if l.Size != 3 {
+	if l.Size() != 3 {
 		t.Error("Size is invalid")
 		t.Fail()
 	}
 }
 
 func TestRemoveLast(t *testing.T) {
-	l := NewLinkedList[int]()
+	l := utils.NewLinkedList[int]()
 
-	l.PushAsFirst(NewLinkedListNode(20))
-	l.PushAsFirst(NewLinkedListNode(30))
-	l.PushAsFirst(NewLinkedListNode(-1))
+	l.PushAsFirst(utils.NewLinkedListNode(20))
+	l.PushAsFirst(utils.NewLinkedListNode(30))
+	l.PushAsFirst(utils.NewLinkedListNode(-1))
 	l.RemoveLast()
 
 	if l.First.Data != -1 {
@@ -66,18 +68,18 @@ func TestRemoveLast(t *testing.T) {
 		t.Fail()
 	}
 
-	if l.Size != 2 {
+	if l.Size() != 2 {
 		t.Error("Size is invalid")
 		t.Fail()
 	}
 }
 
 func TestRemoveFistAsSpecific(t *testing.T) {
-	l := NewLinkedList[int]()
+	l := utils.NewLinkedList[int]()
 
-	l.PushAsFirst(NewLinkedListNode(20))
-	l.PushAsFirst(NewLinkedListNode(30))
-	n := NewLinkedListNode(-1)
+	l.PushAsFirst(utils.NewLinkedListNode(20))
+	l.PushAsFirst(utils.NewLinkedListNode(30))
+	n := utils.NewLinkedListNode(-1)
 	l.PushAsFirst(n)
 	l.Remove(n)
 
@@ -91,19 +93,19 @@ func TestRemoveFistAsSpecific(t *testing.T) {
 		t.Fail()
 	}
 
-	if l.Size != 2 {
+	if l.Size() != 2 {
 		t.Error("Size is invalid")
 		t.Fail()
 	}
 }
 
 func TestRemoveLastAsSpecific(t *testing.T) {
-	l := NewLinkedList[int]()
+	l := utils.NewLinkedList[int]()
 
-	n := NewLinkedListNode(-1)
+	n := utils.NewLinkedListNode(-1)
 	l.PushAsFirst(n)
-	l.PushAsFirst(NewLinkedListNode(20))
-	l.PushAsFirst(NewLinkedListNode(30))
+	l.PushAsFirst(utils.NewLinkedListNode(20))
+	l.PushAsFirst(utils.NewLinkedListNode(30))
 	l.Remove(n)
 
 	if l.First.Data != 30 {
@@ -116,19 +118,19 @@ func TestRemoveLastAsSpecific(t *testing.T) {
 		t.Fail()
 	}
 
-	if l.Size != 2 {
+	if l.Size() != 2 {
 		t.Error("Size is invalid")
 		t.Fail()
 	}
 }
 
 func TestMiddleRemove(t *testing.T) {
-	l := NewLinkedList[int]()
+	l := utils.NewLinkedList[int]()
 
-	l.PushAsFirst(NewLinkedListNode(20))
-	middle := NewLinkedListNode(30)
+	l.PushAsFirst(utils.NewLinkedListNode(20))
+	middle := utils.NewLinkedListNode(30)
 	l.PushAsFirst(middle)
-	l.PushAsFirst(NewLinkedListNode(-1))
+	l.PushAsFirst(utils.NewLinkedListNode(-1))
 
 	l.Remove(middle)
 
@@ -142,18 +144,18 @@ func TestMiddleRemove(t *testing.T) {
 		t.Fail()
 	}
 
-	if l.Size != 2 {
+	if l.Size() != 2 {
 		t.Error("Size is invalid")
 		t.Fail()
 	}
 }
 
 func TestRemoveAllButMiddle(t *testing.T) {
-	l := NewLinkedList[int]()
+	l := utils.NewLinkedList[int]()
 
-	l.PushAsFirst(NewLinkedListNode(20))
-	l.PushAsFirst(NewLinkedListNode(30))
-	n := NewLinkedListNode(-1)
+	l.PushAsFirst(utils.NewLinkedListNode(20))
+	l.PushAsFirst(utils.NewLinkedListNode(30))
+	n := utils.NewLinkedListNode(-1)
 	l.PushAsFirst(n)
 	l.Remove(n)
 	l.RemoveLast()
@@ -168,18 +170,18 @@ func TestRemoveAllButMiddle(t *testing.T) {
 		t.Fail()
 	}
 
-	if l.Size != 1 {
+	if l.Size() != 1 {
 		t.Error("Size is invalid")
 		t.Fail()
 	}
 }
 
 func TestRemoveAll(t *testing.T) {
-	l := NewLinkedList[int]()
+	l := utils.NewLinkedList[int]()
 
-	l.PushAsFirst(NewLinkedListNode(20))
-	l.PushAsFirst(NewLinkedListNode(30))
-	n := NewLinkedListNode(-1)
+	l.PushAsFirst(utils.NewLinkedListNode(20))
+	l.PushAsFirst(utils.NewLinkedListNode(30))
+	n := utils.NewLinkedListNode(-1)
 	l.PushAsFirst(n)
 	l.RemoveLast()
 	l.RemoveLast()
@@ -195,7 +197,7 @@ func TestRemoveAll(t *testing.T) {
 		t.Fail()
 	}
 
-	if l.Size != 0 {
+	if l.Size() != 0 {
 		t.Error("Size is invalid")
 		t.Fail()
 	}

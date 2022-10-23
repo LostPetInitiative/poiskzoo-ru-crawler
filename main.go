@@ -4,7 +4,6 @@ import (
 	"container/heap"
 	"errors"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -27,13 +26,13 @@ import (
 
 const CARDS_DIR_ENVVAR = "CARDS_DIR"
 const PIPELINE_NOTIFICATION_URL = "PIPELINE_URL"
+const NUM_CONCURRENT_WORKERS = "NUM_CONCURRENT_WORKERS"
+const MAX_KNOWN_CARDS_TO_TRACK_COUNT = "MAX_KNOWN_CARDS_TO_TRACK_COUNT"
 
 type void struct{}
 
 var voidVal void
 
-const workerCount = 2
-const maxKnownCardsCount = 10000
 const defaultPollInterval time.Duration = 5 * 60 * 1e9
 
 // Returns the value of specified env var, if it is not set, returns default
@@ -43,8 +42,23 @@ func ExtractEnvOrDefaultString(envVar string, defaultVal string) string {
 		log.Printf("%s env var is not set, using default value \"%v\"\n", envVar, defaultVal)
 		return defaultVal
 	}
-	log.Printf("%s env var is set to %s\n", CARDS_DIR_ENVVAR, v)
+	log.Printf("%s env var is set to %s\n", envVar, v)
 	return v
+}
+
+// Returns the value of specified env var, if it is not set, returns default
+func ExtractEnvOrDefaultInt(envVar string, defaultVal int) int {
+	v, ok := os.LookupEnv(envVar)
+	if !ok {
+		log.Printf("%s env var is not set, using default value \"%v\"\n", envVar, defaultVal)
+		return defaultVal
+	}
+	log.Printf("%s env var is set to %s\n", envVar, v)
+	parsed, err := strconv.ParseInt(v, 0, 64)
+	if err != nil {
+		log.Panicf("Can't parse %s (env var %s) as int", v, envVar)
+	}
+	return int(parsed)
 }
 
 func main() {
@@ -53,6 +67,8 @@ func main() {
 	log.Printf("Starting up...\tVersion: %s\tGit commit: %.6s\n", version.AppVersion, version.GitCommit)
 
 	cardsDir := ExtractEnvOrDefaultString(CARDS_DIR_ENVVAR, "./db")
+	workerCount := ExtractEnvOrDefaultInt(NUM_CONCURRENT_WORKERS, 5)
+	maxKnownCardsCount := ExtractEnvOrDefaultInt(MAX_KNOWN_CARDS_TO_TRACK_COUNT, 256)
 
 	pipelineNotificationUrlStr, ok := os.LookupEnv(PIPELINE_NOTIFICATION_URL)
 	var pipelineNotificationUrl *url.URL = nil
@@ -69,7 +85,7 @@ func main() {
 
 	// reading card dirs
 
-	cardDirContent, err := ioutil.ReadDir(cardsDir)
+	cardDirContent, err := os.ReadDir(cardsDir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			log.Printf("Creating non existing dir %s", cardsDir)

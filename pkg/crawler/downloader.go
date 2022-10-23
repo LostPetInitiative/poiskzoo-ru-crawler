@@ -14,7 +14,8 @@ import (
 )
 
 // TODO: inject implementation?
-var geocoder geocoding.Geocoder = geocoding.NewOpenStreetMapsNominatim()
+var nominatim geocoding.Geocoder = geocoding.NewOpenStreetMapsNominatim()
+var cachedNominatim geocoding.Geocoder = geocoding.NewLRUCacheDecorator(&nominatim, 128)
 
 // Download card, save it to disk, post it to HTTP (kafka REST API) if notification url is not nil
 func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
@@ -32,11 +33,14 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 		log.Panicf("%d:\tFailed to download card: %v\n", card, err)
 	}
 	log.Printf("%d:\tDownloaded card\n", card)
-	fetchedImage, err := utils.HttpGet(fetchedCard.ImagesURL, "*/*")
-	if err != nil {
-		log.Panicf("%d:\tFailed to download image for card: %v\n", card, err)
+	var fetchedImage *utils.HttpFetchResult
+	if fetchedCard.ImagesURL != nil {
+		fetchedImage, err = utils.HttpGet(fetchedCard.ImagesURL, "*/*")
+		if err != nil {
+			log.Panicf("%d:\tFailed to download image for card: %v\n", card, err)
+		}
+		log.Printf("%d:\tDownloaded image for card (%d bytes; mime %s)\n", card, len(fetchedImage.Body), fetchedImage.ContentType)
 	}
-	log.Printf("%d:\tDownloaded image for card (%d bytes; mime %s)\n", card, len(fetchedImage.Body), fetchedImage.ContentType)
 
 	var locationSpecFormats []string = []string{
 		fmt.Sprintf("Россия, г. %s, %s", fetchedCard.City, fetchedCard.Address),
@@ -51,7 +55,7 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 	var geoCoords *geocoding.GeoCoords
 	for _, locationSpec := range locationSpecFormats {
 		log.Printf("%d:\tTrying to geocode \"%s\"...\n", card, locationSpec)
-		coords, err := geocoder.Geocode(locationSpec)
+		coords, err := cachedNominatim.Geocode(locationSpec)
 		if err == nil {
 			log.Printf("%d:\tSuccessfully geocoded \"%s\" as lat:%f lon:%f\n", card, locationSpec, coords.Lat, coords.Lon)
 			geoCoords = coords
@@ -59,11 +63,18 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 		}
 	}
 
+	var imageBytes []byte
+	var imageMime string
+	if fetchedImage != nil {
+		imageBytes = fetchedImage.Body
+		imageMime = fetchedImage.ContentType
+	}
+
 	jsonCard := NewCardJSON(fetchedCard,
 		geoCoords,
 		"Геокодер OSM Moninatim",
-		fetchedImage.Body,
-		fetchedImage.ContentType)
+		imageBytes,
+		imageMime)
 	serialized := jsonCard.JsonSerialize()
 
 	if notificationUrl != nil {
@@ -88,16 +99,20 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 	}
 
 	// replacing embedded base64 image with file reference
-	var imageFileExt string
-	switch strings.ToLower(fetchedImage.ContentType) {
-	case "image/jpeg":
-		imageFileExt = "jpg"
-	default:
-		imageFileExt = strings.TrimPrefix(fetchedImage.ContentType, "image/")
+	var imageFileName string
+	if imageBytes != nil {
+		var imageFileExt string
+		switch strings.ToLower(fetchedImage.ContentType) {
+		case "image/jpeg":
+			imageFileExt = "jpg"
+		default:
+			imageFileExt = strings.TrimPrefix(fetchedImage.ContentType, "image/")
+		}
+		imageFileName = fmt.Sprintf("image.%s", imageFileExt)
+
+		jsonCard.Images = []EncodedImageJSON{{Type: "file", Data: imageFileName}}
+		serialized = jsonCard.JsonSerialize()
 	}
-	imageFileName := fmt.Sprintf("image.%s", imageFileExt)
-	jsonCard.Images = []EncodedImageJSON{{Type: "file", Data: imageFileName}}
-	serialized = jsonCard.JsonSerialize()
 
 	cardFilePath := path.Join(cardDir, "card.json")
 	err = os.WriteFile(cardFilePath, []byte(serialized), 0644)
@@ -106,11 +121,13 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 	} else {
 		log.Printf("%d:\tJSON card saved to disk\n", card)
 	}
-	imageFilePath := path.Join(cardDir, imageFileName)
-	err = os.WriteFile(imageFilePath, fetchedImage.Body, 0644)
-	if err != nil {
-		log.Panicf("%d:\t%v\n", card, err)
-	} else {
-		log.Printf("%d:\timage file saved to disk\n", card)
+	if imageBytes != nil {
+		imageFilePath := path.Join(cardDir, imageFileName)
+		err = os.WriteFile(imageFilePath, fetchedImage.Body, 0644)
+		if err != nil {
+			log.Panicf("%d:\t%v\n", card, err)
+		} else {
+			log.Printf("%d:\timage file saved to disk\n", card)
+		}
 	}
 }

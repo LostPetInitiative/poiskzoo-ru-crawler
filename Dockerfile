@@ -22,8 +22,6 @@ RUN go build -v -o /poiskzooCrawler -ldflags "-X 'github.com/LostPetInitiative/p
 FROM ubuntu as final
 # for some reason the https certs are outdated 🤷‍♂️
 RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates
-#RUN apt-get update && apt-get install --no-install-recommends -y libxss1
-#RUN apt-get update && apt-get upgrade --no-install-recommends -y
 WORKDIR /
 COPY --from=build /poiskzooCrawler /poiskzooCrawler
 

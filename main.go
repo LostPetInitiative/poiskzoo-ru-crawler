@@ -93,6 +93,7 @@ func main() {
 			if err != nil {
 				log.Panic(err)
 			}
+			cardDirContent = make([]fs.DirEntry, 0)
 		} else {
 			log.Panic(err)
 		}

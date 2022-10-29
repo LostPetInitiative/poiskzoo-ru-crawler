@@ -34,6 +34,7 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 	// TODO: do something smarter
 	if _, err := os.Stat(cardDir); err == nil || !errors.Is(err, fs.ErrNotExist) {
 		log.Printf("%d:\t Card dir already exists. Consider it as processed. skipping it\n", card)
+		return
 	}
 
 	log.Printf("%d:\tFetching card...\n", card)

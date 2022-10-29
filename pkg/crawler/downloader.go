@@ -1,7 +1,9 @@
 package crawler
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/url"
 	"os"
@@ -26,6 +28,13 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 		}
 	}
 	defer cardJobFailurePrinter()
+
+	cardDir := path.Join(cardsDir, fmt.Sprintf("%d", card))
+	// workaround for paid promotion
+	// TODO: do something smarter
+	if _, err := os.Stat(cardDir); err == nil || !errors.Is(err, fs.ErrNotExist) {
+		log.Printf("%d:\t Card dir already exists. Consider it as processed. skipping it\n", card)
+	}
 
 	log.Printf("%d:\tFetching card...\n", card)
 	fetchedCard, err := GetPetCard(card)
@@ -92,9 +101,8 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 
 	log.Printf("%d:\tDumping card to disk...\n", card)
 
-	cardDir := path.Join(cardsDir, fmt.Sprintf("%d", card))
 	err = os.Mkdir(cardDir, 0644)
-	if err != nil {
+	if err != nil && !errors.Is(err, fs.ErrExist) {
 		log.Panicf("%d:\tFailed to create card dir: %v", card, cardsDir)
 	}
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/crawler"
+	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/storage"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/types"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/utils"
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/version"
@@ -111,6 +112,9 @@ func main() {
 	foundKnownIdsCount := len(*knownIDsHeap)
 	log.Printf("Found %d stored cards\n", foundKnownIdsCount)
 
+	var localCardStorage crawler.LocalCardStorage = storage.NewDirectoryCardStorage(cardsDir)
+	var crawlerInstance *crawler.Crawler = crawler.NewCrawler(&localCardStorage, pipelineNotificationUrl)
+
 	for {
 		startTime := time.Now().UTC()
 
@@ -189,7 +193,7 @@ func main() {
 
 		runWorker := func() {
 			for card := range cardsJobQueue {
-				crawler.DoCardJob(card, cardsDir, pipelineNotificationUrl)
+				crawlerInstance.DoCardJob(card)
 			}
 			workersWG.Done()
 		}

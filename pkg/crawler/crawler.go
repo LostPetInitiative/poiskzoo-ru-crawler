@@ -1,13 +1,9 @@
 package crawler
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"net/url"
-	"os"
-	"path"
 	"strings"
 
 	"github.com/LostPetInitiative/poiskzoo-ru-crawler/pkg/geocoding"
@@ -19,8 +15,25 @@ import (
 var nominatim geocoding.Geocoder = geocoding.NewOpenStreetMapsNominatim()
 var cachedNominatim geocoding.Geocoder = geocoding.NewLRUCacheDecorator(&nominatim, 128)
 
+type LocalCardStorage interface {
+	IsCardExist(card types.CardID) bool
+	SaveCard(petCard *PetCard, jsonCard *CardJSON, fetchedImage *utils.HttpFetchResult)
+}
+
+type Crawler struct {
+	cardStorage     *LocalCardStorage
+	notificationUrl *url.URL
+}
+
+func NewCrawler(localStorage *LocalCardStorage, notificationUrl *url.URL) *Crawler {
+	return &Crawler{
+		cardStorage:     localStorage,
+		notificationUrl: notificationUrl,
+	}
+}
+
 // Download card, save it to disk, post it to HTTP (kafka REST API) if notification url is not nil
-func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
+func (c *Crawler) DoCardJob(card types.CardID) {
 	cardJobFailurePrinter := func() {
 		if a := recover(); a != nil {
 			log.Printf("%d:\tPanic during fetching of card %v", card, a)
@@ -29,10 +42,9 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 	}
 	defer cardJobFailurePrinter()
 
-	cardDir := path.Join(cardsDir, fmt.Sprintf("%d", card))
 	// workaround for paid promotion
 	// TODO: do something smarter
-	if _, err := os.Stat(cardDir); err == nil || !errors.Is(err, fs.ErrNotExist) {
+	if (*c.cardStorage).IsCardExist(card) {
 		log.Printf("%d:\t Card dir already exists. Consider it as processed. skipping it\n", card)
 		return
 	}
@@ -43,14 +55,7 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 		log.Panicf("%d:\tFailed to download card: %v\n", card, err)
 	}
 	log.Printf("%d:\tDownloaded card\n", card)
-	var fetchedImage *utils.HttpFetchResult
-	if fetchedCard.ImagesURL != nil {
-		fetchedImage, err = utils.HttpGet(fetchedCard.ImagesURL, "*/*")
-		if err != nil {
-			log.Panicf("%d:\tFailed to download image for card: %v\n", card, err)
-		}
-		log.Printf("%d:\tDownloaded image for card (%d bytes; mime %s)\n", card, len(fetchedImage.Body), fetchedImage.ContentType)
-	}
+	var fetchedImage *utils.HttpFetchResult = DownloadImage(fetchedCard.ImagesURL, fmt.Sprintf("%d:\t", card))
 
 	var locationSpecFormats []string = []string{
 		fmt.Sprintf("Россия, г. %s, %s", fetchedCard.City, fetchedCard.Address),
@@ -75,9 +80,11 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 
 	var imageBytes []byte
 	var imageMime string
-	if fetchedImage != nil {
+	if fetchedImage != nil && strings.Contains(fetchedImage.ContentType, "image") {
 		imageBytes = fetchedImage.Body
 		imageMime = fetchedImage.ContentType
+	} else {
+		fetchedImage = nil // fetch data from image URL is not an image
 	}
 
 	jsonCard := NewCardJSON(fetchedCard,
@@ -87,10 +94,10 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 		imageMime)
 	serialized := jsonCard.JsonSerialize()
 
-	if notificationUrl != nil {
+	if c.notificationUrl != nil {
 		// doing notification
 		log.Printf("%d:\tSending snapshot to pipeline...\n\n", card)
-		_, err = utils.HttpPost(notificationUrl, types.JsonMimeType, []byte(serialized))
+		_, err = utils.HttpPost(c.notificationUrl, types.JsonMimeType, []byte(serialized))
 		if err != nil {
 			log.Panicf("%d:Failed to notify pipeline %v\t\n", card, err)
 		} else {
@@ -100,43 +107,19 @@ func DoCardJob(card types.CardID, cardsDir string, notificationUrl *url.URL) {
 		log.Printf("%d:\tSkipped pipeline notification, as no notification URL is set\n", card)
 	}
 
-	log.Printf("%d:\tDumping card to disk...\n", card)
+	(*c.cardStorage).SaveCard(fetchedCard, jsonCard, fetchedImage)
+}
 
-	err = os.Mkdir(cardDir, 0644)
-	if err != nil && !errors.Is(err, fs.ErrExist) {
-		log.Panicf("%d:\tFailed to create card dir: %v", card, cardsDir)
-	}
-
-	// replacing embedded base64 image with file reference
-	var imageFileName string
-	if imageBytes != nil {
-		var imageFileExt string
-		switch strings.ToLower(fetchedImage.ContentType) {
-		case "image/jpeg":
-			imageFileExt = "jpg"
-		default:
-			imageFileExt = strings.TrimPrefix(fetchedImage.ContentType, "image/")
-		}
-		imageFileName = fmt.Sprintf("image.%s", imageFileExt)
-
-		jsonCard.Images = []EncodedImageJSON{{Type: "file", Data: imageFileName}}
-		serialized = jsonCard.JsonSerialize()
-	}
-
-	cardFilePath := path.Join(cardDir, "card.json")
-	err = os.WriteFile(cardFilePath, []byte(serialized), 0644)
-	if err != nil {
-		log.Panicf("%d:\t%v\n", card, err)
-	} else {
-		log.Printf("%d:\tJSON card saved to disk\n", card)
-	}
-	if imageBytes != nil {
-		imageFilePath := path.Join(cardDir, imageFileName)
-		err = os.WriteFile(imageFilePath, fetchedImage.Body, 0644)
+func DownloadImage(imageURL *url.URL, logPrefix string) *utils.HttpFetchResult {
+	var fetchedImage *utils.HttpFetchResult
+	var err error
+	if imageURL != nil {
+		log.Printf("%sDownloading image %v\n", logPrefix, *imageURL)
+		fetchedImage, err = utils.HttpGet(imageURL, "*/*")
 		if err != nil {
-			log.Panicf("%d:\t%v\n", card, err)
-		} else {
-			log.Printf("%d:\timage file saved to disk\n", card)
+			log.Panicf("%sFailed to download image for card: %v\n", logPrefix, err)
 		}
+		log.Printf("%sDownloaded image (%d bytes; mime %s)\n", logPrefix, len(fetchedImage.Body), fetchedImage.ContentType)
 	}
+	return fetchedImage
 }

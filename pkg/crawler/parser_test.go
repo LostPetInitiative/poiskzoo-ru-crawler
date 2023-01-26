@@ -59,6 +59,7 @@ func TestExtractSpeciesFromPetCardPage(t *testing.T) {
 		{"./testdata/164923.html.dump", types.Cat},
 		{"./testdata/164929.html.dump", types.Dog},
 		{"./testdata/164931.html.dump", types.Dog},
+		{"./testdata/168308.html.dump", types.Bird},
 	}
 
 	for _, testCase := range testCases {

@@ -9,11 +9,12 @@ type Species uint8
 const (
 	Dog Species = iota + 1
 	Cat
+	Bird
 )
 
 func (s Species) String() string {
-	species := []string{"dog", "cat"}
-	if s < Dog || s > Cat {
+	species := []string{"dog", "cat", "bird"}
+	if s < Dog || s > Bird {
 		panic(fmt.Sprintf("Unexpected species: %d", s))
 	}
 	return species[s-1]

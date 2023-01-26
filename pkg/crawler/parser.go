@@ -95,6 +95,8 @@ func ExtractSpeciesFromCardPage(doc *html.Node) types.Species {
 		return types.Dog
 	case strings.Contains(dataText, "кот"), strings.Contains(dataText, "кошка"):
 		return types.Cat
+	case strings.Contains(dataText, "ворон"), strings.Contains(dataText, "попугай"):
+		return types.Bird
 	default:
 		panic("Can't extract species type")
 	}
